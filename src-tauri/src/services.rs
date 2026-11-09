@@ -17,16 +17,19 @@ pub struct ServiceDef {
     pub paths: Option<&'static [&'static str]>,
     /// Hosts media may be downloaded from by URL (signed CDN links).
     pub media_hosts: &'static [&'static str],
+    /// Other sites a sign-in may pass through (Instagram's "continue with Facebook").
+    pub partner_hosts: &'static [&'static str],
     pub default_config: &'static str,
 }
 
-pub const SERVICES: [ServiceDef; 7] = [
+pub const SERVICES: [ServiceDef; 9] = [
     ServiceDef {
         id: ServiceId::Whatsapp,
         url: "https://web.whatsapp.com/",
         hosts: &["web.whatsapp.com"],
         paths: None,
         media_hosts: &["whatsapp.net"],
+        partner_hosts: &[],
         default_config: include_str!("../inject/services/whatsapp.json"),
     },
     ServiceDef {
@@ -52,6 +55,7 @@ pub const SERVICES: [ServiceDef; 7] = [
             "/security",
         ]),
         media_hosts: &["fbcdn.net", "fbsbx.com"],
+        partner_hosts: &["instagram.com"],
         default_config: include_str!("../inject/services/messenger.json"),
     },
     ServiceDef {
@@ -68,6 +72,7 @@ pub const SERVICES: [ServiceDef; 7] = [
             "/api",
         ]),
         media_hosts: &["cdninstagram.com", "fbcdn.net"],
+        partner_hosts: &["facebook.com"],
         default_config: include_str!("../inject/services/instagram.json"),
     },
     ServiceDef {
@@ -76,6 +81,7 @@ pub const SERVICES: [ServiceDef; 7] = [
         hosts: &["web.telegram.org"],
         paths: None,
         media_hosts: &[],
+        partner_hosts: &[],
         default_config: include_str!("../inject/services/telegram.json"),
     },
     ServiceDef {
@@ -84,6 +90,7 @@ pub const SERVICES: [ServiceDef; 7] = [
         hosts: &["chat.zalo.me", "id.zalo.me", "zalo.me", "zaloapp.com"],
         paths: None,
         media_hosts: &["zadn.vn", "zdn.vn", "zalo.me", "zaloapp.com"],
+        partner_hosts: &[],
         default_config: include_str!("../inject/services/zalo.json"),
     },
     ServiceDef {
@@ -104,6 +111,7 @@ pub const SERVICES: [ServiceDef; 7] = [
             "/api",
         ]),
         media_hosts: &["discordapp.com", "discordapp.net", "discord.com"],
+        partner_hosts: &[],
         default_config: include_str!("../inject/services/discord.json"),
     },
     ServiceDef {
@@ -118,7 +126,27 @@ pub const SERVICES: [ServiceDef; 7] = [
         ],
         paths: None,
         media_hosts: &["qq.com", "qpic.cn", "wechat.com"],
+        partner_hosts: &[],
         default_config: include_str!("../inject/services/wechat.json"),
+    },
+    ServiceDef {
+        id: ServiceId::Threads,
+        url: "https://www.threads.com/messages",
+        hosts: &["threads.com", "threads.net"],
+        paths: None,
+        media_hosts: &["cdninstagram.com", "fbcdn.net"],
+        // Threads signs in with an Instagram account.
+        partner_hosts: &["instagram.com", "facebook.com"],
+        default_config: include_str!("../inject/services/threads.json"),
+    },
+    ServiceDef {
+        id: ServiceId::Slack,
+        url: "https://app.slack.com/client",
+        hosts: &["slack.com"],
+        paths: None,
+        media_hosts: &["slack.com", "slack-edge.com"],
+        partner_hosts: &[],
+        default_config: include_str!("../inject/services/slack.json"),
     },
 ];
 
@@ -176,6 +204,78 @@ pub fn navigation(def: &ServiceDef, url: &Url) -> Nav {
             if ok { Nav::Allow } else { Nav::OpenExternally }
         }
     }
+}
+
+/// Sign-in and identity-check pages of the big identity providers. Facebook and Instagram
+/// sometimes ask you to confirm it is you with your Google account; that page has to open
+/// inside the account's own profile, or the confirmation never reaches the app.
+const SIGN_IN_HOSTS: &[&str] = &[
+    "accounts.google.com",
+    "accounts.youtube.com",
+    "appleid.apple.com",
+    "idmsa.apple.com",
+    "login.microsoftonline.com",
+    "login.live.com",
+    "account.live.com",
+    "login.yahoo.com",
+];
+
+/// A page of an identity provider's sign-in flow.
+pub fn is_sign_in(url: &Url) -> bool {
+    if url.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    let host = host.to_ascii_lowercase();
+    if host_matches(&host, SIGN_IN_HOSTS) || host.starts_with("accounts.google.") {
+        return true;
+    }
+    // Google's sign-in also passes through www.google.<country>/accounts, /signin, /sorry.
+    let google =
+        host == "google.com" || host.starts_with("www.google.") || host.starts_with("google.");
+    google
+        && [
+            "/accounts",
+            "/signin",
+            "/sorry",
+            "/recaptcha",
+            "/ServiceLogin",
+        ]
+        .iter()
+        .any(|p| url.path().starts_with(p))
+}
+
+/// How long after an identity-provider page the service may use any of its own pages
+/// (and its partner's), so the provider can hand the result back wherever it needs to.
+pub const SIGN_IN_GRACE_MS: u64 = 15 * 60 * 1000;
+
+/// `navigation`, plus sign-in flows: identity-provider pages stay in the account's
+/// webview, and for a while afterwards the service's own pages are not limited by path.
+/// `sign_in_until` is the per-webview end of that window (ms since the epoch).
+pub fn navigation_signin(
+    def: &ServiceDef,
+    url: &Url,
+    sign_in_until: &std::sync::atomic::AtomicU64,
+    now_ms: u64,
+) -> Nav {
+    use std::sync::atomic::Ordering;
+    if is_sign_in(url) {
+        sign_in_until.store(now_ms + SIGN_IN_GRACE_MS, Ordering::Relaxed);
+        return Nav::Allow;
+    }
+    let nav = navigation(def, url);
+    if nav == Nav::OpenExternally
+        && url.scheme() == "https"
+        && now_ms < sign_in_until.load(Ordering::Relaxed)
+        && url
+            .host_str()
+            .is_some_and(|h| host_matches(h, def.hosts) || host_matches(h, def.partner_hosts))
+    {
+        return Nav::Allow;
+    }
+    nav
 }
 
 /// Page settings for a service: the shipped JSON, with the person's override on top.
@@ -266,6 +366,64 @@ mod tests {
             Nav::Block
         );
         assert_eq!(navigation(d, &u("file:///C:/x")), Nav::Block);
+    }
+
+    #[test]
+    fn google_check_stays_inside() {
+        use std::sync::atomic::AtomicU64;
+        let d = def(ServiceId::Messenger);
+        let until = AtomicU64::new(0);
+        let now = 1_000_000;
+        let fb_other = u("https://www.facebook.com/some/verify/return?x=1");
+        assert_eq!(
+            navigation_signin(d, &fb_other, &until, now),
+            Nav::OpenExternally
+        );
+        assert_eq!(
+            navigation_signin(
+                d,
+                &u("https://accounts.google.com/o/oauth2/v2/auth?client_id=x"),
+                &until,
+                now
+            ),
+            Nav::Allow
+        );
+        assert_eq!(
+            navigation_signin(
+                d,
+                &u("https://accounts.google.com.vn/accounts/SetSID"),
+                &until,
+                now
+            ),
+            Nav::Allow
+        );
+        assert_eq!(
+            navigation_signin(d, &fb_other, &until, now + 1000),
+            Nav::Allow
+        );
+        assert_eq!(
+            navigation_signin(d, &u("https://www.google.com/search?q=x"), &until, now),
+            Nav::OpenExternally
+        );
+        assert_eq!(
+            navigation_signin(d, &u("https://evil.com/"), &until, now),
+            Nav::OpenExternally
+        );
+        assert_eq!(
+            navigation_signin(d, &fb_other, &until, now + SIGN_IN_GRACE_MS + 1),
+            Nav::OpenExternally
+        );
+        assert_eq!(
+            navigation_signin(d, &u("http://accounts.google.com/"), &until, now),
+            Nav::OpenExternally
+        );
+        let ig = def(ServiceId::Instagram);
+        let until = AtomicU64::new(0);
+        navigation_signin(ig, &u("https://accounts.google.com/x"), &until, now);
+        assert_eq!(
+            navigation_signin(ig, &u("https://www.facebook.com/checkpoint/x"), &until, now),
+            Nav::Allow
+        );
     }
 
     #[test]

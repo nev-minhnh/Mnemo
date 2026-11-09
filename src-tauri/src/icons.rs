@@ -33,6 +33,11 @@ fn candidates(id: ServiceId) -> Vec<String> {
             s2("wechat.com"),
             "https://web.wechat.com/favicon.ico".into(),
         ],
+        ServiceId::Threads => vec![
+            s2("threads.com"),
+            "https://www.threads.com/favicon.ico".into(),
+        ],
+        ServiceId::Slack => vec![s2("slack.com"), "https://slack.com/favicon.ico".into()],
     }
 }
 

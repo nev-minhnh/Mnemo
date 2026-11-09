@@ -17,10 +17,12 @@ pub enum ServiceId {
     Zalo,
     Discord,
     Wechat,
+    Threads,
+    Slack,
 }
 
 impl ServiceId {
-    pub const ALL: [ServiceId; 7] = [
+    pub const ALL: [ServiceId; 9] = [
         ServiceId::Whatsapp,
         ServiceId::Messenger,
         ServiceId::Instagram,
@@ -28,6 +30,8 @@ impl ServiceId {
         ServiceId::Zalo,
         ServiceId::Discord,
         ServiceId::Wechat,
+        ServiceId::Threads,
+        ServiceId::Slack,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -39,6 +43,8 @@ impl ServiceId {
             ServiceId::Zalo => "zalo",
             ServiceId::Discord => "discord",
             ServiceId::Wechat => "wechat",
+            ServiceId::Threads => "threads",
+            ServiceId::Slack => "slack",
         }
     }
 
@@ -51,6 +57,8 @@ impl ServiceId {
             ServiceId::Zalo => "Zalo",
             ServiceId::Discord => "Discord",
             ServiceId::Wechat => "WeChat",
+            ServiceId::Threads => "Threads",
+            ServiceId::Slack => "Slack",
         }
     }
 
@@ -417,6 +425,8 @@ pub struct Settings {
     pub language: String,
     /// Sidebar shows only avatars.
     pub sidebar_compact: bool,
+    /// Put Mnemo's sidebar on the right, so an app's own navigation rail sits at the window's left edge.
+    pub sidebar_right: bool,
     /// Start hidden in the tray when Windows starts.
     pub start_with_windows: bool,
     /// The window's close button hides Mnemo in the tray instead of quitting.
@@ -439,6 +449,7 @@ impl Default for Settings {
             theme: "system".into(),
             language: "vi".into(),
             sidebar_compact: false,
+            sidebar_right: false,
             start_with_windows: false,
             close_to_tray: true,
             notify: NotifySettings::default(),

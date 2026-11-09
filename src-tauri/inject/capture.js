@@ -377,6 +377,10 @@
     if (!text && !media.length) return null;
     let ts = null;
     if (mc.timeParse === 'whatsapp') ts = parseWhatsAppTime(field(el, mc.timeSource || mc.time));
+    if (mc.timeParse === 'epoch') {
+      const t = parseFloat(timeText);
+      ts = isFinite(t) && t > 1e9 ? Math.round(t < 1e11 ? t * 1000 : t) : null;
+    }
     if (mc.timeParse === 'iso') {
       const t = Date.parse(timeText);
       ts = isNaN(t) ? null : t;

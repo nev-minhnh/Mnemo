@@ -1,0 +1,62 @@
+{
+  "_note": "Threads web messages (threads.com/messages, launched May 2026). Threads is built like Instagram, so these selectors use roles and attributes; they are untested on a real account and may need tuning in services\\threads.json.",
+  "homeRedirect": {
+    "from": [
+      "/"
+    ],
+    "to": "/messages"
+  },
+  "chat": {
+    "key": {
+      "from": "path",
+      "re": "^/messages/(?:t/)?([^/?#]+)"
+    },
+    "title": [
+      {
+        "sel": "div[role='main'] header h2 span"
+      },
+      {
+        "sel": "div[role='main'] h2"
+      },
+      {
+        "sel": "div[role='main'] h1"
+      }
+    ]
+  },
+  "message": {
+    "sel": "div[role='main'] div[role='row']",
+    "text": {
+      "sel": "div[dir='auto']"
+    },
+    "sender": [
+      {
+        "sel": "h5 span"
+      },
+      {
+        "sel": "h4 span"
+      }
+    ],
+    "recalled": [
+      "unsent a message",
+      "đã thu hồi một tin nhắn"
+    ]
+  },
+  "media": {
+    "sel": "img[src*='cdninstagram.com'], img[src*='fbcdn.net'], video[src^='blob:']",
+    "minSize": 120
+  },
+  "compose": {
+    "sel": "div[role='textbox'][contenteditable='true']"
+  },
+  "selfAvatar": [
+    {
+      "sel": "nav a[href^='/@'] img[alt]"
+    },
+    {
+      "sel": "div[role='navigation'] img[alt]"
+    }
+  ],
+  "chatList": {
+    "sel": "a[href*='/messages/'], div[role='listitem']"
+  }
+}

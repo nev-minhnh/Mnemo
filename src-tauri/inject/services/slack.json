@@ -1,0 +1,66 @@
+{
+  "_note": "Slack web client (app.slack.com/client/<team>/<channel>). Each message row has data-item-key = the message's Slack timestamp (seconds since 1970), which gives the exact time. Untested on a real workspace; tune in services\\slack.json.",
+  "chat": {
+    "key": {
+      "from": "path",
+      "re": "^/client/([^/]+/[^/?#]+)"
+    },
+    "title": [
+      {
+        "sel": "[data-qa='channel_name']"
+      },
+      {
+        "sel": ".p-view_header__channel_title"
+      },
+      {
+        "sel": "[data-qa='huddle_channel_header_name']"
+      }
+    ],
+    "groupKeyRe": "/[CG]"
+  },
+  "message": {
+    "sel": "div[data-qa='virtual-list-item'][data-item-key*='.']",
+    "key": {
+      "attr": "data-item-key",
+      "re": "^(\\d+\\.\\d+)$"
+    },
+    "text": {
+      "sel": "[data-qa='message-text'], .c-message_kit__blocks"
+    },
+    "sender": [
+      {
+        "sel": "[data-qa='message_sender_name']"
+      },
+      {
+        "sel": ".c-message__sender_button"
+      }
+    ],
+    "inheritSender": true,
+    "time": {
+      "attr": "data-item-key"
+    },
+    "timeParse": "epoch",
+    "recalled": [
+      "This message was deleted."
+    ]
+  },
+  "media": {
+    "sel": "img[src*='files.slack.com'], img[src*='slack-files']",
+    "minSize": 80
+  },
+  "unreadDivider": ".c-message_list__unread_divider, [data-qa='unread_divider']",
+  "selfAvatar": [
+    {
+      "sel": "[data-qa='user-button'] img[src]"
+    },
+    {
+      "sel": ".p-ia4_home_header_menu__avatar img[src]"
+    }
+  ],
+  "chatList": {
+    "sel": "[data-qa='virtual-list-item'] [data-qa^='channel_sidebar_name']"
+  },
+  "compose": {
+    "sel": "[data-qa='message_input'] [contenteditable='true'], .ql-editor[contenteditable='true']"
+  }
+}

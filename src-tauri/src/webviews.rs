@@ -61,8 +61,13 @@ fn account_rect(
     };
     let side = sidebar_w(app);
     let width = (w - side - panel).max(200.0);
+    let x = if *lock(&app.state::<AppState>().sidebar_right) {
+        0.0
+    } else {
+        side
+    };
     (
-        LogicalPosition::new(side, 0.0),
+        LogicalPosition::new(x, 0.0),
         LogicalSize::new(width, h.max(200.0)),
     )
 }
@@ -222,22 +227,37 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());
     let (id_title, id_dl) = (account.id.clone(), account.id.clone());
     let url = def.url.parse().map_err(|e| format!("{e}"))?;
+    // End of the current sign-in window, shared by page navigations and popups.
+    let sign_in = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let (si1, si2) = (sign_in.clone(), sign_in);
     let builder = WebviewBuilder::new(&label, WebviewUrl::External(url))
         .data_directory(profile)
         .initialization_script(services::init_script(service, &account.id, &page_cfg))
-        .on_navigation(
-            move |url| match services::navigation(services::def(service), url) {
+        .on_navigation(move |url| {
+            match services::navigation_signin(
+                services::def(service),
+                url,
+                &si1,
+                crate::util::now_ms() as u64,
+            ) {
                 Nav::Allow => true,
                 Nav::OpenExternally => {
                     open_external(&a1, url.as_str());
                     false
                 }
                 Nav::Block => false,
-            },
-        )
+            }
+        })
         .on_new_window(move |url, _features| {
-            match services::navigation(services::def(service), &url) {
-                // Call windows and sign-in popups of the service itself open as popups.
+            match services::navigation_signin(
+                services::def(service),
+                &url,
+                &si2,
+                crate::util::now_ms() as u64,
+            ) {
+                // Call windows and sign-in popups (the service's own, or Google's
+                // "confirm it's you") open as popups in the account's profile, so the
+                // result goes back to the page that asked for it.
                 Nav::Allow => NewWindowResponse::Allow,
                 Nav::OpenExternally => {
                     open_external(&a2, url.as_str());
@@ -343,7 +363,11 @@ pub fn show_assist(
     let origin = window.inner_position().map_err(|e| e.to_string())?;
     let (x, y, _w, h) = rect;
     let panel_x = if lock(&app.state::<AppState>().visible).as_deref() == Some(account_id) {
-        sidebar_w(app)
+        if *lock(&app.state::<AppState>().sidebar_right) {
+            0.0
+        } else {
+            sidebar_w(app)
+        }
     } else {
         0.0
     };

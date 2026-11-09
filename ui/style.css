@@ -1,4 +1,7 @@
 /* Mnemo – shared styles for the shell and the writing popup. */
+/* Cinzel (SIL Open Font License, fonts/OFL-Cinzel.txt): the engraved capitals of the logo, for the wordmark only. */
+@font-face { font-family: "Mnemo Brand"; font-weight: 600; font-display: block; src: url("fonts/cinzel-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Mnemo Brand"; font-weight: 700; font-display: block; src: url("fonts/cinzel-latin-700-normal.woff2") format("woff2"); }
 :root {
   --bg: #f2f5fb;
   --surface: #ffffff;
@@ -36,7 +39,7 @@
   --radius-sm: 8px;
   --sidebar: 248px;
   --panel: 380px;
-  --serif: "Cinzel", "Trajan Pro", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --serif: "Mnemo Brand", "Palatino Linotype", Georgia, serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -147,6 +150,8 @@ label.check { display: inline-flex; align-items: center; gap: 8px; cursor: point
 .svc.zalo { background: #0068ff; }
 .svc.discord { background: #5865f2; }
 .svc.wechat { background: #07c160; }
+.svc.threads { background: #101010; }
+.svc.slack { background: #4a154b; }
 .svc.img { background: #fff; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
 .svc.img img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .toast-host { position: fixed; left: calc(var(--sidebar) + 16px); bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 100; max-width: 420px; }
@@ -158,11 +163,18 @@ label.check { display: inline-flex; align-items: center; gap: 8px; cursor: point
 /* ---------- shell ---------- */
 #app { display: grid; grid-template-columns: var(--sidebar) 1fr; height: 100vh; }
 #app.panel { grid-template-columns: var(--sidebar) 1fr var(--panel); }
+#app.right { grid-template-columns: 1fr var(--sidebar); }
+#app.right.panel { grid-template-columns: 1fr var(--panel) var(--sidebar); }
+#app.right .sidebar { order: 3; border-right: 0; border-left: 1px solid var(--side-border); }
+#app.right .panel { order: 2; }
+#app.right .main { order: 1; }
+#app.right .acc-row.active::before { left: auto; right: -4px; }
+#app.right ~ .toast-host { left: 16px; }
 .sidebar { display: flex; flex-direction: column; gap: 2px; padding: 10px 10px 12px; background: var(--side-bg); color: var(--side-text); border-right: 1px solid var(--side-border); min-height: 0; min-width: 0; overflow: hidden; --surface: #0b1633; }
 .side-head { display: flex; align-items: center; gap: 10px; padding: 2px 4px 10px; }
 .side-head .logo { width: 36px; height: 36px; border-radius: 10px; cursor: pointer; flex: none; box-shadow: 0 0 14px rgba(56, 208, 245, .35); }
 .side-head .brand { display: flex; flex-direction: column; line-height: 1.2; cursor: pointer; min-width: 0; }
-.side-head .brand b { font-family: var(--serif); font-size: 18px; font-weight: 700; letter-spacing: .06em; background: linear-gradient(180deg, #ffe6a3, #e0a93a 60%, #b87c1c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.side-head .brand b { font-family: var(--serif); font-size: 17px; font-weight: 700; letter-spacing: .08em; line-height: 1.15; background: linear-gradient(180deg, #ffe6a3, #e0a93a 60%, #b87c1c); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .side-head .brand .faint { color: var(--side-text-2); }
 .side-toggle { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--side-border); background: transparent; color: var(--side-text-2); cursor: pointer; font-size: 16px; line-height: 1; flex: none; }
 .side-toggle:hover { background: var(--side-hover); color: var(--side-text); }
@@ -209,8 +221,8 @@ label.check { display: inline-flex; align-items: center; gap: 8px; cursor: point
 .hero { position: relative; overflow: hidden; display: flex; align-items: center; gap: 20px; padding: 26px 28px; margin-bottom: 22px; border: 1px solid rgba(110, 150, 255, .22);
   background: radial-gradient(120% 140% at 0% 0%, rgba(56, 208, 245, .22), transparent 55%), radial-gradient(90% 120% at 100% 100%, rgba(240, 196, 99, .14), transparent 60%), linear-gradient(135deg, #0b1a48, #050b1f); color: #e8eefc; }
 .hero img { width: 76px; height: 76px; border-radius: 20px; box-shadow: 0 0 28px rgba(56, 208, 245, .45); }
-.hero h1 { font-family: var(--serif); font-size: 30px; font-weight: 700; letter-spacing: .08em; background: linear-gradient(180deg, #ffe6a3, #e0a93a 60%, #b87c1c); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero .slogan { font-size: 15px; color: #a9c8f5; margin-top: 4px; font-style: italic; letter-spacing: .02em; }
+.hero h1 { font-family: var(--serif); font-size: 32px; font-weight: 700; letter-spacing: .1em; line-height: 1.1; background: linear-gradient(180deg, #ffe6a3, #e0a93a 60%, #b87c1c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .slogan { font-family: var(--serif); font-weight: 600; font-size: 13.5px; color: #a9c8f5; margin-top: 6px; letter-spacing: .06em; }
 .hero .stat { background: rgba(255, 255, 255, .05); border-radius: 10px; border: 1px solid rgba(110, 150, 255, .18); min-width: 92px; }
 .hero .stat .faint { color: #8ea3d1; }
 .hero .stat b { color: #fff; }

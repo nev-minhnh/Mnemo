@@ -39,7 +39,9 @@ function sidebarWidth() { return S && S.settings.sidebar_compact ? 76 : 248; }
 async function syncLayout() {
   document.documentElement.style.setProperty('--sidebar', sidebarWidth() + 'px');
   $('#app').classList.toggle('compact', !!(S && S.settings.sidebar_compact));
-  try { await invoke('set_layout', { sidebar: sidebarWidth(), panel: panelOpen }); } catch (e) {}
+  const right = !!(S && S.settings.sidebar_right);
+  $('#app').classList.toggle('right', right);
+  try { await invoke('set_layout', { sidebar: sidebarWidth(), panel: panelOpen, right }); } catch (e) {}
 }
 
 function renderSidebar() {
@@ -52,7 +54,7 @@ function renderSidebar() {
     <div class="side-head">
       <img class="logo" src="logo.png" alt="Mnemo" data-page="home" title="Mnemo – Every chat in sight, locked safe and tight.">
       <div class="side-label brand grow" data-page="home"><b>Mnemo</b>${total ? `<span class="faint small">${total} chưa đọc</span>` : ''}</div>
-      <button class="side-toggle" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}">${compact ? '›' : '‹'}</button>
+      <button class="side-toggle" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}">${compact !== !!S.settings.sidebar_right ? '›' : '‹'}</button>
     </div>
     <div class="side-section side-label">Tài khoản</div>
     <div class="accounts scroll">
@@ -427,7 +429,7 @@ function renderImport(main) {
         </div>` : `<div class="notice">Hãy thêm tài khoản ${imp.services.map((s) => SERVICE_NAME[s]).join(' hoặc ')} trước.</div>`}
       </div>`;
     }).join('')}
-    <p class="small faint">Zalo chưa có bản xuất chính thức đọc được; tin nhắn Zalo được lưu khi bạn mở hội thoại trong Mnemo.</p>
+    <p class="small faint">Zalo, Discord, WeChat, Threads và Slack chưa có bản xuất chính thức mà Mnemo đọc được; tin nhắn của chúng được lưu khi bạn mở hội thoại trong Mnemo.</p>
   </div>`;
   main.querySelectorAll('[data-kind]').forEach((card) => {
     const imp = IMPORTS.find((x) => x.kind === card.dataset.kind);
@@ -557,6 +559,9 @@ async function renderSettings(main) {
     <div class="section"><h2>Giao diện</h2><div class="card pad"><div class="form">
       <span class="label">Ngôn ngữ</span><select data-s="language" style="width:200px" data-noi18n>
         ${[['vi', 'Tiếng Việt'], ['en', 'English']].map(([v, l]) => `<option value="${v}" ${s.language === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <span class="label">Thanh bên Mnemo</span><select data-s="sidebar_right" style="width:200px">
+        ${[['', 'Bên trái'], ['1', 'Bên phải']].map(([v, l]) => `<option value="${v}" ${!!s.sidebar_right === !!v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <span class="hint">Đặt bên phải để thanh điều hướng riêng của ứng dụng (WhatsApp, Discord…) nằm sát mép trái cửa sổ, không bị kẹp giữa hai thanh.</span>
       <span class="label">Chủ đề</span><select data-s="theme" style="width:200px">
         ${[['system', 'Theo Windows'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<option value="${v}" ${s.theme === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
     </div></div></div>
@@ -570,6 +575,10 @@ async function renderSettings(main) {
   main.querySelectorAll('[data-s]').forEach((input) => input.addEventListener('change', () => {
     s[input.dataset.s] = input.type === 'checkbox' ? input.checked : input.value;
     if (input.dataset.s === 'theme') applyTheme(s.theme);
+    if (input.dataset.s === 'sidebar_right') {
+      s.sidebar_right = !!input.value;
+      syncLayout().then(renderSidebar);
+    }
     if (input.dataset.s === 'language') {
       setLang(s.language);
       renderSidebar();

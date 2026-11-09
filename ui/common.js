@@ -76,8 +76,8 @@ const ICON = {
   lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
 };
 
-const SERVICE_SHORT = { whatsapp: 'WA', messenger: 'Ms', instagram: 'IG', telegram: 'Tg', zalo: 'Za', discord: 'Dc', wechat: 'Wc' };
-const SERVICE_NAME = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', telegram: 'Telegram', zalo: 'Zalo', discord: 'Discord', wechat: 'WeChat' };
+const SERVICE_SHORT = { whatsapp: 'WA', messenger: 'Ms', instagram: 'IG', telegram: 'Tg', zalo: 'Za', discord: 'Dc', wechat: 'Wc', threads: 'Th', slack: 'Sl' };
+const SERVICE_NAME = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', telegram: 'Telegram', zalo: 'Zalo', discord: 'Discord', wechat: 'WeChat', threads: 'Threads', slack: 'Slack' };
 
 // Each service's own site icon, fetched by the app at runtime (data: URLs). Until it
 // arrives (or offline), a lettered tile stands in.

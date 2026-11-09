@@ -215,8 +215,17 @@ pub fn open_devtools(app: AppHandle, id: String) -> Result<(), String> {
 
 /// The shell reports its sidebar width and whether the AI panel is open.
 #[tauri::command]
-pub fn set_layout(app: AppHandle, state: State<'_, AppState>, sidebar: f64, panel: bool) {
+pub fn set_layout(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    sidebar: f64,
+    panel: bool,
+    right: Option<bool>,
+) {
     *lock(&state.sidebar_w) = sidebar.clamp(56.0, 400.0);
+    if let Some(r) = right {
+        *lock(&state.sidebar_right) = r;
+    }
     *lock(&state.panel_open) = panel;
     webviews::layout(&app);
 }

@@ -90,6 +90,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         .user_agent(concat!("Mnemo/", env!("CARGO_PKG_VERSION")))
         .build()?;
     let config_dir_for_avatars = config_dir.clone();
+    let sidebar_right = settings.sidebar_right;
     let state = AppState {
         secrets: Mutex::new(crypto::Secrets::load(&config_dir)),
         config_dir,
@@ -104,6 +105,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         panel_open: Mutex::new(false),
         assist: Mutex::new(Default::default()),
         sidebar_w: Mutex::new(webviews::SIDEBAR_W),
+        sidebar_right: Mutex::new(sidebar_right),
         avatars: Mutex::new(load_avatars(&config_dir_for_avatars)),
         notices: Mutex::new(vec![]),
         icons: Mutex::new(icons::load_cached(&config_dir_for_avatars)),
