@@ -80,6 +80,27 @@ pub fn mnemo_context(
     Ok(())
 }
 
+/// The conversations the app's own chat list marks unread, so a generic notification
+/// can say how many people wrote ("3 người: An, Bình, Chi").
+#[tauri::command]
+pub fn mnemo_senders(
+    webview: Webview,
+    state: State<'_, AppState>,
+    names: Vec<String>,
+) -> Result<(), String> {
+    let s = state.settings();
+    let account = account_for(&webview, &s)?;
+    let mut clean: Vec<String> = Vec::new();
+    for n in names.into_iter().take(200) {
+        let n = crate::util::truncate_chars(n.trim(), 120);
+        if !n.is_empty() && !clean.contains(&n) {
+            clean.push(n);
+        }
+    }
+    lock(&state.senders).insert(account.id.clone(), clean);
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveMessage {

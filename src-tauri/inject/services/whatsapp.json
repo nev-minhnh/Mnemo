@@ -63,5 +63,13 @@
   ],
   "chatList": {
     "sel": "#pane-side span[title]"
+  },
+  "unreadChats": {
+    "row": "#pane-side div[role='listitem'], #pane-side div[role='row']",
+    "badge": "span[aria-label*='unread' i], span[aria-label*='chưa đọc' i]",
+    "name": {
+      "sel": "span[title]",
+      "attr": "title"
+    }
   }
 }

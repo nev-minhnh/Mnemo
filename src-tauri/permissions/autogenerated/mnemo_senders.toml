@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-senders"
+description = "Enables the mnemo_senders command without any pre-configured scope."
+commands.allow = ["mnemo_senders"]
+
+[[permission]]
+identifier = "deny-mnemo-senders"
+description = "Denies the mnemo_senders command without any pre-configured scope."
+commands.deny = ["mnemo_senders"]

@@ -27,6 +27,7 @@
     "allow-mnemo-config",
     "allow-mnemo-log",
     "allow-mnemo-context",
+    "allow-mnemo-senders",
     "allow-mnemo-ingest",
     "allow-mnemo-media-blob",
     "allow-mnemo-media-url",

@@ -66,5 +66,12 @@
   ],
   "chatList": {
     "sel": ".conv-item .conv-item-title__name, .conv-item .truncate, [data-id^='div_TabMsg_ThrdChItem']"
+  },
+  "unreadChats": {
+    "row": "#conversationList .msg-item, [id^='div_TabMsg_ThrdChItem'], .conv-item",
+    "badge": ".unread-red-dot, .z-noti-badge, [class*='unread']",
+    "name": {
+      "sel": ".conv-item-title__name, .truncate"
+    }
   }
 }

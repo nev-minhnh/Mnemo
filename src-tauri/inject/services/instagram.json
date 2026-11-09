@@ -59,5 +59,12 @@
   ],
   "chatList": {
     "sel": "a[href*='/direct/t/'], div[role='listitem'], div[role='button']"
+  },
+  "unreadChats": {
+    "row": "a[href*='/direct/t/'], div[role='listitem']",
+    "badge": "[aria-label*='unread' i], [aria-label*='chưa đọc' i]",
+    "name": {
+      "sel": "span[dir='auto']"
+    }
   }
 }

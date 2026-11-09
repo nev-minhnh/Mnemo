@@ -62,5 +62,12 @@
   },
   "compose": {
     "sel": "[data-qa='message_input'] [contenteditable='true'], .ql-editor[contenteditable='true']"
+  },
+  "unreadChats": {
+    "row": "[data-qa='virtual-list-item']",
+    "badge": ".p-channel_sidebar__badge, [data-qa='mention_badge']",
+    "name": {
+      "sel": "[data-qa^='channel_sidebar_name']"
+    }
   }
 }

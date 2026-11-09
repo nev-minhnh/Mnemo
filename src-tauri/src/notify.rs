@@ -253,6 +253,23 @@ pub async fn notice_open(
     Ok(())
 }
 
+/// "From" of a generic notice: the one sender, or how many and who ("3 người: A, B, C").
+pub fn sender_line(names: &[String], en: bool) -> String {
+    match names.len() {
+        0 => "—".into(),
+        1 => names[0].clone(),
+        n => {
+            let shown: Vec<&str> = names.iter().take(4).map(String::as_str).collect();
+            let more = if n > 4 { ", …" } else { "" };
+            if en {
+                format!("{n} people: {}{more}", shown.join(", "))
+            } else {
+                format!("{n} người: {}{more}", shown.join(", "))
+            }
+        }
+    }
+}
+
 /// When an app's unread count goes up but it didn't hand over a notification
 /// (some apps only notify in certain states), show a short generic one.
 pub fn unread_rose(app: &AppHandle, account_id: &str, before: u32, now: u32) {
@@ -287,6 +304,14 @@ pub fn unread_rose(app: &AppHandle, account_id: &str, before: u32, now: u32) {
             return;
         }
         let new = now.saturating_sub(before).max(1);
+        let en = s.language == "en";
+        let from = sender_line(
+            &lock(&state.senders)
+                .get(&account_id)
+                .cloned()
+                .unwrap_or_default(),
+            en,
+        );
         push(
             &app,
             Notice {
@@ -294,9 +319,9 @@ pub fn unread_rose(app: &AppHandle, account_id: &str, before: u32, now: u32) {
                 account: account_id.clone(),
                 service: account.service.as_str().into(),
                 app: account.service.display().into(),
-                from: "—".into(),
+                from,
                 to: account.label.clone(),
-                text: if state.settings().language == "en" {
+                text: if en {
                     format!("{new} new messages ({now} unread)")
                 } else {
                     format!("{new} tin nhắn mới ({now} chưa đọc)")
@@ -428,6 +453,21 @@ pub fn update_taskbar(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn sender_count() {
+        let n = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert_eq!(super::sender_line(&[], false), "—");
+        assert_eq!(super::sender_line(&n(&["An"]), false), "An");
+        assert_eq!(
+            super::sender_line(&n(&["An", "Bình", "Chi"]), false),
+            "3 người: An, Bình, Chi"
+        );
+        assert_eq!(
+            super::sender_line(&n(&["a", "b", "c", "d", "e"]), true),
+            "5 people: a, b, c, d, …"
+        );
+    }
+
     #[test]
     fn badge_draws_digits() {
         for n in [1, 7, 42, 99, 100, 5000] {

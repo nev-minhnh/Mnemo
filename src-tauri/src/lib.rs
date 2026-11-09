@@ -108,6 +108,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         sidebar_right: Mutex::new(sidebar_right),
         avatars: Mutex::new(load_avatars(&config_dir_for_avatars)),
         notices: Mutex::new(vec![]),
+        senders: Mutex::new(HashMap::new()),
         icons: Mutex::new(icons::load_cached(&config_dir_for_avatars)),
         http,
     };
@@ -275,6 +276,7 @@ pub fn run() {
             capture::mnemo_config,
             capture::mnemo_log,
             capture::mnemo_context,
+            capture::mnemo_senders,
             capture::mnemo_ingest,
             capture::mnemo_media_blob,
             capture::mnemo_media_url,

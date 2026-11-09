@@ -55,5 +55,12 @@
   "selfAvatar": [],
   "chatList": {
     "sel": ".chat-list .ListItem .fullName"
+  },
+  "unreadChats": {
+    "row": ".chat-list .ListItem.Chat",
+    "badge": ".ChatBadge.unread, .ChatBadge:not(.pinned):not(.mention)",
+    "name": {
+      "sel": ".fullName"
+    }
   }
 }

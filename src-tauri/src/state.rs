@@ -54,6 +54,8 @@ pub struct AppState {
     pub avatars: Mutex<HashMap<String, String>>,
     /// Notifications on screen, newest first.
     pub notices: Mutex<Vec<crate::notify::Notice>>,
+    /// Per account: names of the conversations the app's chat list marks unread.
+    pub senders: Mutex<HashMap<String, Vec<String>>>,
     /// The apps' own icons (data URLs) by service id.
     pub icons: Mutex<HashMap<String, String>>,
     pub http: reqwest::Client,

@@ -1,19 +1,63 @@
 {
   "_note": "WeChat for Web (web.wechat.com). Many WeChat accounts are not allowed to sign in on the web; that is a WeChat restriction. Selectors follow the classic web client and may need tuning.",
   "chat": {
-    "key": { "from": "dom", "sel": "#chatArea .title_name, .box_hd .title_name" },
-    "title": [{ "sel": "#chatArea .title_name" }, { "sel": ".box_hd .title_name" }]
+    "key": {
+      "from": "dom",
+      "sel": "#chatArea .title_name, .box_hd .title_name"
+    },
+    "title": [
+      {
+        "sel": "#chatArea .title_name"
+      },
+      {
+        "sel": ".box_hd .title_name"
+      }
+    ]
   },
   "message": {
     "sel": "#chatArea .message[data-cm], #chatArea .message",
-    "key": { "attr": "data-cm", "re": "\"MsgId\":\"?(\\d+)" },
-    "text": { "sel": ".js_message_plain, .plain pre, .bubble_cont" },
-    "sender": { "sel": ".nickname" },
-    "outgoing": { "selfClass": "me" },
-    "recalled": ["撤回了一条消息", "recalled a message", "đã thu hồi"]
+    "key": {
+      "attr": "data-cm",
+      "re": "\"MsgId\":\"?(\\d+)"
+    },
+    "text": {
+      "sel": ".js_message_plain, .plain pre, .bubble_cont"
+    },
+    "sender": {
+      "sel": ".nickname"
+    },
+    "outgoing": {
+      "selfClass": "me"
+    },
+    "recalled": [
+      "撤回了一条消息",
+      "recalled a message",
+      "đã thu hồi"
+    ]
   },
-  "media": { "sel": ".msg-img[src], img.msg-img", "minSize": 80 },
-  "selfAvatar": [{ "sel": ".header .avatar img[src]" }, { "sel": ".panel .header img.img[src]" }],
-  "chatList": { "sel": ".chat_item .nickname_text, .chat_item .info .nickname" },
-  "compose": { "sel": "#editArea" }
+  "media": {
+    "sel": ".msg-img[src], img.msg-img",
+    "minSize": 80
+  },
+  "selfAvatar": [
+    {
+      "sel": ".header .avatar img[src]"
+    },
+    {
+      "sel": ".panel .header img.img[src]"
+    }
+  ],
+  "chatList": {
+    "sel": ".chat_item .nickname_text, .chat_item .info .nickname"
+  },
+  "compose": {
+    "sel": "#editArea"
+  },
+  "unreadChats": {
+    "row": ".chat_item",
+    "badge": ".web_wechat_reddot_middle, .web_wechat_reddot, .icon.reddot",
+    "name": {
+      "sel": ".nickname_text"
+    }
+  }
 }

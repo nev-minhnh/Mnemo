@@ -237,6 +237,26 @@
   setTimeout(detectAvatar, 6000);
   setInterval(detectAvatar, 60000);
 
+  // Names of the conversations the chat list marks unread (for "From: 3 người" notices).
+  let lastSenders = '';
+  function unreadSenders() {
+    const u = cfg.unreadChats;
+    if (!u || !u.row) return;
+    const names = [];
+    for (const row of qa(document, u.row)) {
+      const marked = u.badge ? (row.matches(u.badge) || !!q(row, u.badge)) : true;
+      if (!marked) continue;
+      const n = field(row, u.name || { attr: 'text' }).split('\n')[0].trim();
+      if (n && names.indexOf(n) === -1) names.push(n);
+      if (names.length >= 200) break;
+    }
+    const sig = names.join('\u0001');
+    if (sig === lastSenders) return;
+    lastSenders = sig;
+    invoke('mnemo_senders', { names }).catch(() => {});
+  }
+  setInterval(unreadSenders, 2000);
+
   // ---------- styles (constructable sheets are allowed by the pages' CSP) ----------
   let pageSheet = null;
   function setPageCss(on) {

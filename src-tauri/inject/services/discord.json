@@ -1,28 +1,83 @@
 {
   "_note": "Discord web app. Messages are li[id^='chat-messages-'] ('chat-messages-<channel>-<message>'); each has a <time datetime> with the exact time. The open conversation comes from the URL /channels/<server or @me>/<channel>.",
-  "homeRedirect": { "from": ["/"], "to": "/app" },
+  "homeRedirect": {
+    "from": [
+      "/"
+    ],
+    "to": "/app"
+  },
   "chat": {
-    "key": { "from": "path", "re": "^/channels/([^/]+/[^/]+)" },
+    "key": {
+      "from": "path",
+      "re": "^/channels/([^/]+/[^/]+)"
+    },
     "title": [
-      { "sel": "section[aria-label] h1" },
-      { "sel": "[class*='titleWrapper'] h1" },
-      { "sel": "[class*='title'] h1" }
+      {
+        "sel": "section[aria-label] h1"
+      },
+      {
+        "sel": "[class*='titleWrapper'] h1"
+      },
+      {
+        "sel": "[class*='title'] h1"
+      }
     ],
     "groupKeyRe": "^(?!@me/)"
   },
   "message": {
     "sel": "li[id^='chat-messages-']",
-    "key": { "attr": "id", "re": "chat-messages-\\d+-(\\d+)" },
-    "text": { "sel": "[id^='message-content-']", "exclude": ["[class*='timestamp']", "[class*='edited']"] },
-    "sender": [{ "sel": "[id^='message-username-'] [class*='username']" }, { "sel": "[id^='message-username-']" }],
+    "key": {
+      "attr": "id",
+      "re": "chat-messages-\\d+-(\\d+)"
+    },
+    "text": {
+      "sel": "[id^='message-content-']",
+      "exclude": [
+        "[class*='timestamp']",
+        "[class*='edited']"
+      ]
+    },
+    "sender": [
+      {
+        "sel": "[id^='message-username-'] [class*='username']"
+      },
+      {
+        "sel": "[id^='message-username-']"
+      }
+    ],
     "inheritSender": true,
-    "time": { "sel": "time[datetime]", "attr": "datetime" },
+    "time": {
+      "sel": "time[datetime]",
+      "attr": "datetime"
+    },
     "timeParse": "iso",
     "recalled": []
   },
-  "media": { "sel": "img[src*='media.discordapp.net/attachments'], img[src*='cdn.discordapp.com/attachments'], video[src*='discordapp']", "minSize": 80 },
+  "media": {
+    "sel": "img[src*='media.discordapp.net/attachments'], img[src*='cdn.discordapp.com/attachments'], video[src*='discordapp']",
+    "minSize": 80
+  },
   "unreadDivider": "[id='---new-messages-bar'], [class*='newMessagesBar']",
-  "selfAvatar": [{ "sel": "section[aria-label='User area'] img[src]" }, { "sel": "[class*='panels'] [class*='avatar'] img[src]" }],
-  "chatList": { "sel": "nav a[href^='/channels/'] [class*='name'], nav a[href^='/channels/']" },
-  "compose": { "sel": "div[role='textbox'][contenteditable='true']" }
+  "selfAvatar": [
+    {
+      "sel": "section[aria-label='User area'] img[src]"
+    },
+    {
+      "sel": "[class*='panels'] [class*='avatar'] img[src]"
+    }
+  ],
+  "chatList": {
+    "sel": "nav a[href^='/channels/'] [class*='name'], nav a[href^='/channels/']"
+  },
+  "compose": {
+    "sel": "div[role='textbox'][contenteditable='true']"
+  },
+  "unreadChats": {
+    "row": "a[href^='/channels/@me/']",
+    "badge": "[class*='numberBadge'], [class*='unread']",
+    "name": {
+      "attr": "aria-label",
+      "re": "^([^,(]+)"
+    }
+  }
 }

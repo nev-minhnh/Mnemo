@@ -5,6 +5,7 @@ const COMMANDS: &[&str] = &[
     "mnemo_config",
     "mnemo_log",
     "mnemo_context",
+    "mnemo_senders",
     "mnemo_ingest",
     "mnemo_media_blob",
     "mnemo_media_url",

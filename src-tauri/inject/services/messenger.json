@@ -65,5 +65,12 @@
   ],
   "chatList": {
     "sel": "a[href*='/messages/t/'], a[href*='/messages/e2ee/t/']"
+  },
+  "unreadChats": {
+    "row": "a[href*='/messages/t/'], a[href*='/messages/e2ee/t/']",
+    "badge": "[aria-label*='unread' i], [aria-label*='chưa đọc' i]",
+    "name": {
+      "sel": "span[dir='auto']"
+    }
   }
 }
