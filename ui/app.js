@@ -302,7 +302,6 @@ async function renderMain() {
 // ---------------------------------------------------------------- home
 
 function renderHome(main) {
-  const st = S.archive.ok ? S.archive.stats : null;
   const accs = accounts();
   main.innerHTML = `<div class="page">
     <div class="card hero">
@@ -311,17 +310,10 @@ function renderHome(main) {
         <h1>Mnemo</h1>
         <div class="slogan">Every chat in sight, locked safe and tight.</div>
       </div>
-      ${st ? `<div class="row">
-        <div class="stat"><span class="faint small">Hội thoại</span><b>${st.chats}</b></div>
-        <div class="stat"><span class="faint small">Tin nhắn</span><b>${st.messages}</b></div>
-        <div class="stat"><span class="faint small">Tệp</span><b>${st.media}</b></div>
-      </div>` : ''}
     </div>
     ${S.archive.ok ? '' : `<div class="notice danger section">Kho lưu trữ chưa mở: ${esc(S.archive.error)}<br><a href="#" data-goto="settings">Mở Cài đặt để nhập khóa khôi phục hoặc chọn thư mục khác.</a></div>`}
     ${accs.length ? `<div class="section"><h2>Tài khoản</h2><div class="grid">
       ${accs.map((a) => {
-        const stats = (S.stats || {})[a.id] || {};
-        const kept = (st && st.accounts && st.accounts[a.id]) || {};
         const n = (S.unread || {})[a.id] || 0;
         if (a.disabled) {
           return `<div class="card svc-card off" title="Đã tạm tắt: không chạy, không tốn bộ nhớ; vẫn giữ đăng nhập">
@@ -333,14 +325,7 @@ function renderHome(main) {
         return `<div class="card svc-card">
           <div class="row">${avatarHtml(a, 42)}<div class="grow"><div class="small muted">${SERVICE_NAME[a.service]}</div><b class="ellipsis" data-noi18n>${esc(a.label)}</b></div>
           ${n ? `<span class="badge danger">${n} chưa đọc</span>` : ''}</div>
-          <div class="acc-stats">
-            <span><b>${kept.chats || 0}</b><span class="faint">hội thoại</span></span>
-            <span><b>${kept.messages || 0}</b><span class="faint">tin nhắn</span></span>
-            <span><b>${kept.media || 0}</b><span class="faint">tệp</span></span>
-          </div>
-          <div class="small muted">${a.capture && S.settings.capture_enabled
-            ? `Đang lưu tin nhắn${stats.messages || stats.media ? ` · phiên này +${stats.messages || 0} tin, +${stats.media || 0} tệp` : ''}${kept.last_ts ? ` · tin mới nhất ${fmtTime(kept.last_ts)}` : ''}`
-            : 'Không lưu tin nhắn'}</div>
+          <div class="small muted">${a.capture && S.settings.capture_enabled ? 'Đang lưu tin nhắn' : 'Không lưu tin nhắn'}</div>
           <div class="row"><button class="btn sm primary" data-open="${esc(a.id)}">Mở</button><button class="btn sm" data-acc-page="${esc(a.id)}">Cài đặt</button><span class="grow"></span><button class="btn sm ghost" data-disable="${esc(a.id)}" title="Tạm tắt: đóng trang để không tốn tài nguyên, vẫn giữ đăng nhập">Tạm tắt</button></div>
         </div>`;
       }).join('')}</div></div>` : ''}
@@ -1234,12 +1219,6 @@ async function start() {
     if (!panelOpen || e.payload.account !== visible || panel.tab !== 'one') return;
     clearTimeout(ctxTimer);
     ctxTimer = setTimeout(renderPanel, 600);
-  });
-  let homeTimer = null;
-  listen('captured', () => {
-    if (page !== 'home' || visible) return;
-    clearTimeout(homeTimer);
-    homeTimer = setTimeout(async () => { if (page === 'home' && !visible) { await refresh(); renderMain(); } }, 2000);
   });
   listen('captured', (e) => {
     if (!panelOpen || e.payload.account !== visible || panel.busy || panel.tab !== 'one') return;

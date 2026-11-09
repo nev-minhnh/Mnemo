@@ -18,7 +18,6 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 
 **Thanh bên, thông báo, khay hệ thống**
 - Thanh Mnemo mặc định **nằm trên cùng**, mở rộng đầy đủ; đặt được **trái, phải, trên cùng hoặc dưới cùng** (Cài đặt → Giao diện). Đặt bên phải thì thanh điều hướng riêng của WhatsApp, Discord… nằm sát mép trái cửa sổ; trên/dưới thì thanh nằm ngang như các tab.
-- Trang chủ hiện số liệu thật của kho: hội thoại có ít nhất một tin, tin nhắn (không tính dòng hệ thống và tin đã thu hồi), tệp đã lưu (tệp trùng chỉ tính một lần); mỗi tài khoản có số riêng, cộng thêm số lưu được trong phiên này.
 - **Kéo thả** tài khoản trên thanh bên để đổi thứ tự. Nút **+** mở bảng chọn 10 ứng dụng ngay cạnh nút, đè lên trang đang mở. Bấm logo để về trang chủ.
 - **Dùng chung đăng nhập Meta:** khi thêm Instagram có thể dùng luôn tài khoản Messenger (Instagram hiện "Tiếp tục với tư cách…"), khi thêm Threads có thể dùng luôn tài khoản Instagram; các tài khoản này chạy chung dữ liệu trình duyệt.
 - **Tạm tắt tài khoản:** tài khoản tạm tắt không chạy, không tốn RAM, không nhận tin hay thông báo và không hiện trên thanh Mnemo; ở trang chủ nó hiện màu xám với nút **Kích hoạt lại**. Đăng nhập vẫn được giữ nên bật lại là dùng ngay.
