@@ -232,7 +232,7 @@ const I18N = {
   'Xóa provider': 'Remove provider',
   'Xóa tài khoản': 'Remove account',
   'Yêu cầu của bạn, vd: viết lại cho lịch sự, xưng em…': 'Your request, e.g. rewrite it more politely…',
-  'Zalo, Discord, WeChat, Threads và Slack chưa có bản xuất chính thức mà Mnemo đọc được; tin nhắn của chúng được lưu khi bạn mở hội thoại trong Mnemo.': 'Zalo, Discord, WeChat, Threads and Slack have no official export Mnemo can read; their messages are saved when you open conversations in Mnemo.',
+  'Zalo, Discord, WeChat, Threads, Slack và LinkedIn chưa có bản xuất chính thức mà Mnemo đọc được; tin nhắn của chúng được lưu khi bạn mở hội thoại trong Mnemo.': 'Zalo, Discord, WeChat, Threads, Slack and LinkedIn have no official export Mnemo can read; their messages are saved when you open conversations in Mnemo.',
   'hoặc': 'or',
   'khi trang cho phép; nếu không, hãy chọn ảnh.': 'when the page allows it; otherwise choose a picture.',
   'llama.cpp (máy này)': 'llama.cpp (this computer)',

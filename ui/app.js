@@ -429,7 +429,7 @@ function renderImport(main) {
         </div>` : `<div class="notice">Hãy thêm tài khoản ${imp.services.map((s) => SERVICE_NAME[s]).join(' hoặc ')} trước.</div>`}
       </div>`;
     }).join('')}
-    <p class="small faint">Zalo, Discord, WeChat, Threads và Slack chưa có bản xuất chính thức mà Mnemo đọc được; tin nhắn của chúng được lưu khi bạn mở hội thoại trong Mnemo.</p>
+    <p class="small faint">Zalo, Discord, WeChat, Threads, Slack và LinkedIn chưa có bản xuất chính thức mà Mnemo đọc được; tin nhắn của chúng được lưu khi bạn mở hội thoại trong Mnemo.</p>
   </div>`;
   main.querySelectorAll('[data-kind]').forEach((card) => {
     const imp = IMPORTS.find((x) => x.kind === card.dataset.kind);

@@ -1,0 +1,73 @@
+{
+  "_note": "LinkedIn messaging (linkedin.com/messaging/thread/<id>). LinkedIn shows only the time of each message group, so times are approximate (≈). Untested on a real account; tune in services\\linkedin.json.",
+  "homeRedirect": {
+    "from": [
+      "/",
+      "/feed",
+      "/feed/"
+    ],
+    "to": "/messaging/"
+  },
+  "chat": {
+    "key": {
+      "from": "path",
+      "re": "^/messaging/thread/([^/?#]+)"
+    },
+    "title": [
+      {
+        "sel": ".msg-entity-lockup__entity-title"
+      },
+      {
+        "sel": ".msg-thread__link-to-profile h2"
+      },
+      {
+        "sel": "#thread-detail-jump-target"
+      }
+    ]
+  },
+  "message": {
+    "sel": "div.msg-s-event-listitem",
+    "key": {
+      "attr": "data-event-urn"
+    },
+    "text": {
+      "sel": ".msg-s-event-listitem__body"
+    },
+    "sender": [
+      {
+        "closest": "li.msg-s-message-list__event",
+        "sel": ".msg-s-message-group__name"
+      }
+    ],
+    "inheritSender": true,
+    "time": [
+      {
+        "closest": "li.msg-s-message-list__event",
+        "sel": ".msg-s-message-group__timestamp"
+      }
+    ],
+    "recalled": [
+      "This message has been deleted.",
+      "Tin nhắn này đã bị xóa."
+    ]
+  },
+  "media": {
+    "sel": "img[src*='media.licdn.com/dms'], img[src*='dms.licdn.com']",
+    "minSize": 80
+  },
+  "unreadDivider": ".msg-s-message-list__unread-divider, .msg-s-message-list__new-message-divider",
+  "selfAvatar": [
+    {
+      "sel": "img.global-nav__me-photo"
+    },
+    {
+      "sel": ".global-nav__me img[src]"
+    }
+  ],
+  "chatList": {
+    "sel": ".msg-conversation-listitem__participant-names, .msg-conversation-card__participant-names"
+  },
+  "compose": {
+    "sel": ".msg-form__contenteditable[contenteditable='true']"
+  }
+}

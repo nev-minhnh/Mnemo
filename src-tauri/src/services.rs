@@ -22,7 +22,7 @@ pub struct ServiceDef {
     pub default_config: &'static str,
 }
 
-pub const SERVICES: [ServiceDef; 9] = [
+pub const SERVICES: [ServiceDef; 10] = [
     ServiceDef {
         id: ServiceId::Whatsapp,
         url: "https://web.whatsapp.com/",
@@ -147,6 +147,28 @@ pub const SERVICES: [ServiceDef; 9] = [
         media_hosts: &["slack.com", "slack-edge.com"],
         partner_hosts: &[],
         default_config: include_str!("../inject/services/slack.json"),
+    },
+    ServiceDef {
+        id: ServiceId::Linkedin,
+        url: "https://www.linkedin.com/messaging/",
+        hosts: &["linkedin.com"],
+        // Only the inbox and sign-in stay in the app; profiles, posts and jobs open in the browser.
+        paths: Some(&[
+            "/",
+            "/messaging",
+            "/feed",
+            "/login",
+            "/uas",
+            "/checkpoint",
+            "/authwall",
+            "/signup",
+            "/oauth",
+            "/psettings",
+            "/voyager",
+        ]),
+        media_hosts: &["licdn.com"],
+        partner_hosts: &[],
+        default_config: include_str!("../inject/services/linkedin.json"),
     },
 ];
 

@@ -19,10 +19,11 @@ pub enum ServiceId {
     Wechat,
     Threads,
     Slack,
+    Linkedin,
 }
 
 impl ServiceId {
-    pub const ALL: [ServiceId; 9] = [
+    pub const ALL: [ServiceId; 10] = [
         ServiceId::Whatsapp,
         ServiceId::Messenger,
         ServiceId::Instagram,
@@ -32,6 +33,7 @@ impl ServiceId {
         ServiceId::Wechat,
         ServiceId::Threads,
         ServiceId::Slack,
+        ServiceId::Linkedin,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -45,6 +47,7 @@ impl ServiceId {
             ServiceId::Wechat => "wechat",
             ServiceId::Threads => "threads",
             ServiceId::Slack => "slack",
+            ServiceId::Linkedin => "linkedin",
         }
     }
 
@@ -59,6 +62,7 @@ impl ServiceId {
             ServiceId::Wechat => "WeChat",
             ServiceId::Threads => "Threads",
             ServiceId::Slack => "Slack",
+            ServiceId::Linkedin => "LinkedIn",
         }
     }
 
