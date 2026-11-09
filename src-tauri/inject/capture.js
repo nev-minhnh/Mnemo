@@ -682,6 +682,7 @@
     marks = document.createElement('div');
     glow = document.createElement('div');
     pair = document.createElement('div');
+    pair.style.display = 'none';
     pair.className = 'pair';
     badge = document.createElement('button');
     badge.className = 'b m';
@@ -703,51 +704,15 @@
     shadow.append(marks, glow, pair, card);
     document.documentElement.appendChild(host);
   }
-  function placeBadge(el) {
-    ensureBadge();
-    const r = caretRect(el);
-    const x = Math.min(window.innerWidth - 70, Math.max(4, r.right + 8));
-    const y = Math.min(window.innerHeight - 32, Math.max(4, r.top - 32));
-    pair.style.left = x + 'px';
-    pair.style.top = y + 'px';
-    if (!pair.classList.contains('on')) {
-      pair.classList.add('on');
-      requestAnimationFrame(() => pair.classList.add('in'));
-    }
-  }
-  function hideBadge() { if (pair) pair.classList.remove('on', 'in'); }
-
-  // The checker shows: scanning (a turning ring), the number of suggestions with a ring
-  // split by category colour, or a green tick.
-  function paintChecker() {
-    if (!checker) return;
-    checker.classList.remove('scan', 'clean');
-    checker.style.removeProperty('--ring');
-    if (busy) {
-      checker.classList.add('scan');
-      checker.innerHTML = '<span>' + SVG_CHECK + '</span>';
-      checker.title = 'Đang kiểm tra…';
-      return;
-    }
-    if (!result) { checker.innerHTML = '<span>' + SVG_CHECK + '</span>'; checker.title = 'Kiểm tra chính tả, ngữ pháp, văn phong'; return; }
-    if (!issues.length) { checker.classList.add('clean'); checker.innerHTML = '<span>✓</span>'; checker.title = 'Không thấy lỗi'; return; }
-    const counts = CATS.map((c) => issues.filter((i) => i.category === c).length);
-    let at = 0;
-    const parts = [];
-    CATS.forEach((c, n) => {
-      if (!counts[n]) return;
-      const end = at + (counts[n] / issues.length) * 100;
-      parts.push(`${CAT_COLOR[c]} ${at}% ${end}%`);
-      at = end;
-    });
-    checker.style.setProperty('--ring', `conic-gradient(${parts.join(',')})`);
-    checker.innerHTML = '<span>' + Math.min(issues.length, 99) + '</span>';
-    checker.title = issues.length + ' gợi ý' + (result.score != null ? ' · điểm ' + result.score : '') + ' – bấm để mở Trợ lý viết';
-  }
+  // The Writing assistant lives in Mnemo's right-hand panel (its button sits beside the AI
+  // assistant's in the Mnemo bar); the page only draws underlines and hover cards.
+  function placeBadge() { ensureBadge(); }
+  function hideBadge() {}
+  function paintChecker() {}
 
   // Tells Mnemo (the Writing assistant panel) what this draft looks like now.
   function report(open) {
-    const el = issuesEl || lastEditable;
+    const el = issuesEl || lastEditable || composeTarget();
     invoke('mnemo_writing', {
       draft: {
         text: el ? editableText(el).slice(0, 20000) : '',
@@ -821,6 +786,7 @@
       if (text.trim().length < 3 || (document.activeElement !== el && !el.contains(document.activeElement))) return;
       placeBadge(el);
       if (runtime.autoCheck && text !== lastChecked) runCheck(el, text, false, false);
+      else report(false);
     }, 900);
   }
   document.addEventListener('input', onTyping, true);
@@ -831,7 +797,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.shiftKey && (e.code === 'Space' || e.key === ' ')) {
       const el = editableRoot(document.activeElement);
-      if (isEditable(el)) { lastEditable = el; e.preventDefault(); e.stopPropagation(); openAssist(); }
+      if (isEditable(el)) { lastEditable = el; e.preventDefault(); e.stopPropagation(); openChecker(); }
     }
   }, true);
 
@@ -992,11 +958,20 @@
   // Called by Mnemo's Writing assistant panel.
   window.__MNEMO_ISSUE__ = function (what, original) {
     if (what === 'recheck') {
-      const el = issuesEl || lastEditable;
+      const el = issuesEl || lastEditable || composeTarget();
       if (el && document.contains(el)) { const t = editableText(el); if (t.trim()) runCheck(el, t, true, false); }
       return;
     }
     if (what === 'refresh') { refreshRuntime(); report(false); return; }
+    // The panel opened: check the draft now unless that exact text was just checked.
+    if (what === 'open') {
+      const el = (lastEditable && document.contains(lastEditable)) ? lastEditable : composeTarget();
+      if (el) lastEditable = el;
+      const t = el ? editableText(el) : '';
+      if (!t.trim() || busy || (result && t === lastChecked)) { report(false); return; }
+      runCheck(el, t, true, false);
+      return;
+    }
     const it = issues.find((x) => x.original === original);
     if (!it) return;
     if (what === 'focus') highlight(it);

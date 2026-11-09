@@ -38,22 +38,28 @@ function wRing(score, busy) {
 }
 
 async function openWriting(account) {
+  account = account || null;
   W.account = account;
   W.tab = 'list';
   W.filter = null;
   W.open = null;
   W.known = new Set();
   W.text = null;
-  try { W.data = await invoke('writing_state', { account }); } catch (e) { W.data = null; }
+  W.data = null;
+  if (account) {
+    try { W.data = await invoke('writing_state', { account }); } catch (e) { W.data = null; }
+    // Ask the page for its draft and check it if it hasn't been checked yet.
+    invoke('writing_action', { account, action: 'open', original: null }).catch(() => {});
+  }
   const switching = panel.mode !== 'writing';
   panel.mode = 'writing';
   if (!panelOpen) await togglePanel(true);
-  else { if (switching) enter($('#panel')); renderPanel(); }
+  else { if (switching) enter($('#panel')); renderPanel(); renderSidebar(); }
 }
 
 function writingUpdate(v) {
-  if (!W.data || v.account !== W.account) return;
-  Object.assign(W.data, v);
+  if (v.account !== W.account) return;
+  W.data = Object.assign(W.data || {}, v);
   if (panelOpen && panel.mode === 'writing') renderWritingBody();
 }
 
@@ -72,7 +78,8 @@ function renderWritingBody() {
   const body = $('#wbody');
   if (!body) return;
   const d = W.data;
-  if (!d) { body.innerHTML = '<div class="notice">Gõ vào ô soạn tin của một tài khoản rồi bấm nút kiểm tra cạnh con trỏ.</div>'; return; }
+  if (!W.account) { body.innerHTML = '<div class="notice">Mở một tài khoản và gõ vào ô soạn tin: Trợ lý viết kiểm tra đúng nội dung trong ô đó, không đọc cuộc trò chuyện.</div>'; return; }
+  if (!d) { body.innerHTML = '<div class="row muted small"><div class="spinner"></div>Đang đọc ô soạn tin…</div>'; return; }
   const issues = d.issues || [];
   const counts = Object.fromEntries(W_CAT.map(([k]) => [k, issues.filter((i) => i.category === k).length]));
   const list = W.filter ? issues.filter((i) => i.category === W.filter) : issues;
@@ -80,7 +87,7 @@ function renderWritingBody() {
   body.innerHTML = `
     <div class="w-sum">${wRing(d.score, d.busy)}
       <div class="grow col" style="gap:2px"><b>Điểm tổng</b>
-        <span class="small muted">${d.busy ? 'Đang kiểm tra…' : !d.text ? 'Ô soạn tin đang trống.' : issues.length ? `${issues.length} gợi ý` : 'Không thấy lỗi nào. 👍'}</span></div></div>
+        <span class="small muted">${d.busy ? 'Đang kiểm tra…' : !d.text ? 'Ô soạn tin đang trống.' : d.score == null ? 'Chưa kiểm tra' : issues.length ? `${issues.length} gợi ý` : 'Không thấy lỗi nào. 👍'}</span></div></div>
     <div class="row wrap" style="gap:8px">
       <button class="btn gold sm" id="w-check" ${d.busy || !d.text ? 'disabled' : ''}>Kiểm tra lại</button>
       <button class="chip-toggle ${d.autoCheck ? 'on' : ''}" id="w-auto">Kiểm tra khi gõ</button>
@@ -111,8 +118,8 @@ function renderWritingBody() {
     return `<div class="w-item ${fresh ? 'fresh' : ''} ${open ? 'open' : ''}" data-o="${esc(i.original)}" style="--c:${W_COLOR[i.category] || W_COLOR.correctness};--i:${n}">
       <div class="row" style="gap:8px"><span class="w-dot"></span><span class="grow" data-noi18n><del>${esc(i.original)}</del> → <ins>${i.replacement ? esc(i.replacement) : '(xóa)'}</ins></span></div>
       <div class="small muted" ${i.title ? 'data-noi18n' : ''}>${esc(i.title || '')}</div>
-      <div class="w-more">${i.explanation ? `<div class="small" data-noi18n>${esc(i.explanation)}</div>` : ''}
-        <div class="row wrap" style="gap:6px"><button class="btn sm primary" data-a="accept">Chấp nhận</button><button class="btn sm" data-a="dismiss">Bỏ qua</button><button class="btn sm ghost" data-a="learn">Thêm vào từ điển</button></div></div>
+      <div class="w-more"><div class="col" style="gap:6px">${i.explanation ? `<div class="small" data-noi18n>${esc(i.explanation)}</div>` : ''}
+        <div class="row wrap" style="gap:6px"><button class="btn sm primary" data-a="accept">Chấp nhận</button><button class="btn sm" data-a="dismiss">Bỏ qua</button><button class="btn sm ghost" data-a="learn">Thêm vào từ điển</button></div></div></div>
     </div>`;
   }).join('') || (d.busy ? '' : `<div class="small faint">${d.text ? 'Không có gợi ý nào.' : ''}</div>`);
   issues.forEach((i) => W.known.add(i.original));

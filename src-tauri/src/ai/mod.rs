@@ -354,7 +354,7 @@ pub fn writing_action(
     action: String,
     original: Option<String>,
 ) -> Result<(), String> {
-    if !["accept", "dismiss", "learn", "focus", "recheck", "refresh"].contains(&action.as_str()) {
+    if !["accept", "dismiss", "learn", "focus", "recheck", "refresh", "open"].contains(&action.as_str()) {
         return Err("Unknown action".into());
     }
     let wv = app

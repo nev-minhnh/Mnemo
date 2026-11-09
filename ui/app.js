@@ -88,7 +88,8 @@ function renderSidebar() {
     ${barHorizontal() ? `<div class="add-fixed">${addBtn}</div>` : ''}
     <div class="side-nav">
       <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${barHorizontal() ? (compact ? '»' : '«') : (compact !== (barPos() === 'right') ? '›' : '‹')}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
-      ${`<button class="side-item ${panelOpen && panel.mode !== 'writing' ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
+      <button class="side-item ${panelOpen && panel.mode !== 'writing' ? 'active' : ''}" data-panel="ai" title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>
+      <button class="side-item ${panelOpen && panel.mode === 'writing' ? 'active' : ''}" data-panel="writing" title="Trợ lý viết (Ctrl+Shift+Space trong ô soạn tin)">${ICON.pencheck}<span class="side-label">Trợ lý viết</span></button>
       ${nav('archive', 'archive', 'Kho tin nhắn')}
       ${nav('media', 'media', 'Tệp đã lưu')}
       ${nav('import', 'import', 'Nhập tệp xuất')}
@@ -100,11 +101,16 @@ function renderSidebar() {
     b.addEventListener('pointerdown', (e) => startReorder(e, b));
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); openPage('account:' + b.dataset.acc); });
   });
-  sb.querySelector('[data-panel]').addEventListener('click', () => {
-    if (panelOpen && panel.mode === 'writing') { panel.mode = 'ai'; renderPanel(); renderSidebar(); return; }
+  // Both AI features share the right-hand panel: opening one closes the other, clicking
+  // the open one again closes the panel.
+  sb.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => {
+    const mode = b.dataset.panel;
+    if (panelOpen && (panel.mode || 'ai') === mode) { togglePanel(false); return; }
+    if (mode === 'writing') { openWriting(visible); return; }
+    const switching = panelOpen;
     panel.mode = 'ai';
-    togglePanel();
-  });
+    if (switching) { enter($('#panel')); renderPanel(); renderSidebar(); } else togglePanel(true);
+  }));
   sb.querySelector('[data-add]').addEventListener('click', (e) => {
     // A popover next to the + button, over whatever is open (no trip to the home page).
     const r = e.currentTarget.getBoundingClientRect();
@@ -258,7 +264,8 @@ async function showAccount(id) {
     await invoke('show_account', { id });
     visible = id;
     renderSidebar();
-    if (panelOpen) renderPanel();
+    if (panelOpen && panel.mode === 'writing') openWriting(id);
+    else if (panelOpen) renderPanel();
   } catch (e) { toast(errText(e), true); }
 }
 

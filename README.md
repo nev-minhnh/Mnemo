@@ -50,10 +50,11 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 - **Chọn nơi lưu** cho cả kho tin nhắn lẫn thư mục tệp tải về. Có thể bật mã hóa cả tệp đã lưu.
 
 **Trợ lý AI**
-- **Hai nút cạnh con trỏ** khi ngừng gõ trong ô soạn tin, **chỉ đọc nội dung trong ô đó**, không bao giờ đọc hay gửi cuộc trò chuyện:
-  - **✦ Trợ lý AI** (nút tròn màu gradient, hoặc Ctrl+Shift+Space): popup viết với AI: trang trọng hơn, thân thiện hơn, ngắn gọn, mở rộng, đơn giản, hay hơn, skills, hoặc bảo AI viết từ đầu; đổi nhanh provider, model, effort, thinking; xong thì thay vào ô soạn tin.
-  - **Nút kiểm tra** (vòng tròn tối có chữ A✓): khi đang quét có vòng xoay; xong thì hiện **số gợi ý**, viền chia màu theo loại. Bấm vào để mở **panel Trợ lý viết** (cùng chỗ với panel Trợ lý AI): điểm 0–100, số gợi ý theo 4 nhóm **Đúng** (đỏ), **Rõ ràng** (xanh dương), **Hấp dẫn** (xanh lá), **Giọng điệu** (tím), nhận xét giọng điệu, bật/tắt "Kiểm tra khi gõ", tab Gợi ý / Mục tiêu / Viết. Bấm một gợi ý trong panel thì chữ đó **được tô sáng** trong ô soạn tin.
-  - Lỗi được **gạch chân 4 màu** ngay trong ô soạn tin; rê chuột vào để mở thẻ gợi ý: **bấm chữ màu xanh** để nhận, hoặc **Bỏ qua** / **Thêm vào từ điển**.
+- **Mọi tính năng AI nằm ở panel bên phải**, mở bằng hai nút cạnh nhau trên thanh Mnemo: **✦ Trợ lý AI** và **Trợ lý viết** (bút có dấu tick). Mở cái này thì cái kia đóng lại; bấm lại nút đang mở để đóng panel. Không còn nút nổi cạnh con trỏ.
+- **Trợ lý viết** chỉ đọc **nội dung trong ô soạn tin** của tài khoản đang mở, không bao giờ đọc hay gửi cuộc trò chuyện. Mở panel thì bản nháp được kiểm tra ngay (hoặc nhấn **Ctrl+Shift+Space** trong ô soạn tin):
+  - điểm 0–100, gợi ý theo 4 nhóm **Đúng** (đỏ), **Rõ ràng** (xanh dương), **Hấp dẫn** (xanh lá), **Giọng điệu** (tím), nhận xét giọng điệu, bật/tắt "Kiểm tra khi gõ";
+  - tab **Gợi ý** (bấm một gợi ý thì chữ đó được tô sáng trong ô soạn tin), **Mục tiêu** (mức trang trọng, người nhận, mục đích, ngôn ngữ, từ điển riêng), **Viết** (trang trọng hơn, thân thiện hơn, ngắn gọn, mở rộng, đơn giản, hay hơn, skills, hoặc bảo AI viết; xong thì thay vào ô soạn tin);
+  - lỗi được **gạch chân 4 màu** trong ô soạn tin; rê chuột vào để mở thẻ gợi ý: **bấm chữ màu xanh** để nhận, hoặc **Bỏ qua** / **Thêm vào từ điển**.
 - **Panel AI cho từng ứng dụng:**
   - Với từng hội thoại: **tóm tắt tin chưa xem**, **tóm tắt theo khoảng thời gian**, và **gợi ý câu trả lời** dựa trên tin chưa xem; bấm vào gợi ý thì nó được chèn vào ô soạn, bạn tự bấm gửi.
   - **Hỏi đáp trên nhiều hội thoại** cùng lúc.

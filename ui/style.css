@@ -397,10 +397,10 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 .w-item ins { text-decoration: none; color: var(--text); font-weight: 600; }
 .w-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
 .w-more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s var(--ease); }
-.w-more > * { overflow: hidden; }
+.w-more > * { overflow: hidden; min-height: 0; }
 .w-item.open .w-more { grid-template-rows: 1fr; }
 .w-item .w-more { gap: 6px; }
-.w-item.open .w-more > :first-child { margin-top: 6px; }
+.w-item.open .w-more > div { padding-top: 6px; }
 @keyframes w-in { from { opacity: 0; transform: translateY(6px); } }
 .w-goals { display: grid; grid-template-columns: 116px 1fr; gap: 8px 10px; align-items: center; }
 .w-word { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 4px 0 9px; border-radius: 12px; background: var(--surface-2); font-size: 12.5px; }
