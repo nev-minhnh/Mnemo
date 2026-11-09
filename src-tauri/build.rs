@@ -21,6 +21,7 @@ const COMMANDS: &[&str] = &[
     "add_account",
     "update_account",
     "move_account",
+    "reorder_accounts",
     "remove_account",
     "show_account",
     "show_page",

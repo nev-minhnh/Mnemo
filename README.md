@@ -18,6 +18,7 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 
 **Thanh bên, thông báo, khay hệ thống**
 - Thanh bên Mnemo đặt được **bên trái hoặc bên phải** (Cài đặt → Giao diện). Đặt bên phải thì thanh điều hướng riêng của WhatsApp, Discord… nằm sát mép trái cửa sổ.
+- **Kéo thả** tài khoản trên thanh bên để đổi thứ tự. Nút **Thêm tài khoản** cuối danh sách mở bảng chọn 10 ứng dụng.
 - Mỗi tài khoản hiện **avatar của bạn trong app** (tự lấy từ trang nếu được, hoặc ảnh bạn chọn), có icon nhỏ của app ở góc dưới phải. Bên cạnh là tên app ở trên, tên tài khoản ở dưới, và số tin chưa đọc. Thanh bên thu gọn được, chỉ còn avatar.
 - **Thông báo tin mới của Mnemo** ở góc phải dưới màn hình, gồm: [Tên App], From, giờ, To, Nội dung.
   - Khi app không gửi thông báo riêng mà chỉ tăng số chưa đọc, Mnemo hiện thông báo chung; nếu nhiều người cùng nhắn, dòng From ghi số người và tên (vd "3 người: An, Bình, Chi"), lấy từ các hội thoại đang có dấu chưa đọc trong danh sách chat.

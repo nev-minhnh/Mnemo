@@ -342,6 +342,7 @@ pub fn run() {
             commands::add_account,
             commands::update_account,
             commands::move_account,
+            commands::reorder_accounts,
             commands::remove_account,
             commands::show_account,
             commands::show_page,

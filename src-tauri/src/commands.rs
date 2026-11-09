@@ -138,6 +138,23 @@ pub fn move_account(state: State<'_, AppState>, id: String, delta: i32) -> Resul
     save(&state, &s)
 }
 
+/// Puts the accounts in the order the person dragged them to in the sidebar.
+/// Ids it doesn't know are ignored; accounts it leaves out keep their place at the end.
+#[tauri::command]
+pub fn reorder_accounts(state: State<'_, AppState>, ids: Vec<String>) -> Result<(), String> {
+    let mut s = lock(&state.settings);
+    let mut rest = std::mem::take(&mut s.accounts);
+    let mut ordered = Vec::with_capacity(rest.len());
+    for id in &ids {
+        if let Some(i) = rest.iter().position(|a| &a.id == id) {
+            ordered.push(rest.remove(i));
+        }
+    }
+    ordered.extend(rest);
+    s.accounts = ordered;
+    save(&state, &s)
+}
+
 /// Removes an account. Its archived messages stay; `wipe_profile` also signs it out
 /// for good by deleting its browser data.
 #[tauri::command]

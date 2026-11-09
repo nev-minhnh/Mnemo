@@ -279,6 +279,7 @@ const I18N = {
   '↓ Xuống': '↓ Down',
   '✓ Sửa lỗi': '✓ Proofread',
   'Trang chủ': 'Home',
+  'Chọn ứng dụng. Mỗi tài khoản có hồ sơ trình duyệt riêng, nên bạn thêm được nhiều tài khoản của cùng một ứng dụng.': 'Choose an app. Each account has its own browser profile, so you can add several accounts of the same app.',
   'Thanh bên Mnemo': 'Mnemo sidebar',
   'Bên trái': 'Left',
   'Bên phải': 'Right',
@@ -317,7 +318,7 @@ const I18N_PATTERNS = [
 // Words inside composed strings ("230 tin · 4 chưa xem"), longest first.
 const I18N_PHRASES = [
   ['Đang lưu tin nhắn', 'Saving messages'], ['tệp bỏ qua theo quy tắc', 'files skipped by rules'],
-  ['(chuột phải: cài đặt)', '(right-click: settings)'], ['tin cập nhật', 'updated'], ['tin đã lưu', 'messages saved'],
+  ['(chuột phải: cài đặt · kéo để đổi thứ tự)', '(right-click: settings · drag to reorder)'], ['(chuột phải: cài đặt)', '(right-click: settings)'], ['tin cập nhật', 'updated'], ['tin đã lưu', 'messages saved'],
   ['đã cắt bớt (tăng', 'shortened (raise'], ['trong Cài đặt)', 'in Settings)'], ['lỗi gần nhất', 'last error'],
   ['hội thoại', 'conversations'], ['chưa đọc', 'unread'], ['chưa xem', 'unseen'], ['phiên này', 'this session'],
   ['tin mới', 'new messages'], ['tệp lưu', 'files saved'], ['đã chọn', 'selected'], ['kết quả', 'results'],

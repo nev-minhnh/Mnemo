@@ -54,21 +54,21 @@ function renderSidebar() {
     <div class="side-head">
       <img class="logo" src="logo.png" alt="Mnemo" data-page="home" title="Mnemo – Every chat in sight, locked safe and tight.">
       <div class="side-label brand grow" data-page="home"><b>Mnemo</b>${total ? `<span class="faint small">${total} chưa đọc</span>` : ''}</div>
-      <button class="side-toggle" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}">${compact !== !!S.settings.sidebar_right ? '›' : '‹'}</button>
     </div>
     <div class="side-section side-label">Tài khoản</div>
     <div class="accounts scroll">
       ${accounts().map((a) => {
         const n = (S.unread || {})[a.id] || 0;
-        return `<button class="acc-row ${visible === a.id ? 'active' : ''}" data-acc="${esc(a.id)}" title="${esc(SERVICE_NAME[a.service])} · ${esc(a.label)}${n ? ` · ${n} chưa đọc` : ''} (chuột phải: cài đặt)">
+        return `<button class="acc-row ${visible === a.id ? 'active' : ''}" data-acc="${esc(a.id)}" title="${esc(SERVICE_NAME[a.service])} · ${esc(a.label)}${n ? ` · ${n} chưa đọc` : ''} (chuột phải: cài đặt · kéo để đổi thứ tự)">
           <span class="acc-avatar">${avatarHtml(a, 38)}${n && compact ? `<span class="count">${n > 99 ? '99+' : n}</span>` : ''}</span>
           <span class="acc-text side-label"><span class="acc-app">${esc(SERVICE_NAME[a.service])}</span><span class="acc-name" data-noi18n>${esc(a.label)}</span></span>
           ${n && !compact ? `<span class="pill">${n > 999 ? '999+' : n}</span>` : ''}
         </button>`;
       }).join('')}
-      ${accounts().length ? '' : `<button class="acc-row add" data-page="home" title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>`}
+      <button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>
     </div>
     <div class="side-nav">
+      <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${compact !== !!S.settings.sidebar_right ? '›' : '‹'}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
       ${nav('home', 'home', 'Trang chủ')}
       ${`<button class="side-item ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
       ${nav('archive', 'archive', 'Kho tin nhắn')}
@@ -78,16 +78,109 @@ function renderSidebar() {
     </div>`;
   sb.querySelectorAll('[data-page]').forEach((b) => b.addEventListener('click', () => openPage(b.dataset.page)));
   sb.querySelectorAll('[data-acc]').forEach((b) => {
-    b.addEventListener('click', () => showAccount(b.dataset.acc));
+    b.addEventListener('click', () => { if (!reorder.justDropped) showAccount(b.dataset.acc); });
+    b.addEventListener('pointerdown', (e) => startReorder(e, b));
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); openPage('account:' + b.dataset.acc); });
   });
   sb.querySelector('[data-panel]').addEventListener('click', () => togglePanel());
+  sb.querySelector('[data-add]').addEventListener('click', () => pickApp());
   $('#collapse').addEventListener('click', async () => {
     S.settings.sidebar_compact = !S.settings.sidebar_compact;
     await syncLayout();
     renderSidebar();
     saveSettingsSoon();
   });
+}
+
+// ---------------------------------------------------------------- drag to reorder accounts
+// Pointer events rather than HTML drag-and-drop: the window's own file-drop handling
+// swallows HTML drag events in WebView2.
+const reorder = { row: null, id: null, y0: 0, active: false, justDropped: false };
+
+function startReorder(e, row) {
+  if (e.button !== 0) return;
+  reorder.row = row;
+  reorder.id = row.dataset.acc;
+  reorder.y0 = e.clientY;
+  reorder.active = false;
+}
+
+window.addEventListener('pointermove', (e) => {
+  const r = reorder;
+  if (!r.row) return;
+  if (!r.active) {
+    if (Math.abs(e.clientY - r.y0) < 6) return;
+    r.active = true;
+    r.row.classList.add('dragging');
+    document.body.classList.add('reordering');
+  }
+  const list = r.row.parentElement;
+  const rows = Array.from(list.querySelectorAll('.acc-row[data-acc]')).filter((x) => x !== r.row);
+  let before = null;
+  for (const x of rows) {
+    const b = x.getBoundingClientRect();
+    if (e.clientY < b.top + b.height / 2) { before = x; break; }
+  }
+  list.insertBefore(r.row, before || list.querySelector('.acc-row.add'));
+  // Scroll the list when dragging near its edges.
+  const lb = list.getBoundingClientRect();
+  if (e.clientY < lb.top + 24) list.scrollTop -= 8;
+  else if (e.clientY > lb.bottom - 24) list.scrollTop += 8;
+});
+
+window.addEventListener('pointerup', async () => {
+  const r = reorder;
+  if (!r.row) return;
+  const wasActive = r.active;
+  const list = r.row.parentElement;
+  r.row.classList.remove('dragging');
+  document.body.classList.remove('reordering');
+  r.row = null;
+  r.active = false;
+  if (!wasActive) return;
+  // The click that ends a drag must not also open the account.
+  r.justDropped = true;
+  setTimeout(() => { r.justDropped = false; }, 0);
+  const ids = Array.from(list.querySelectorAll('.acc-row[data-acc]')).map((x) => x.dataset.acc);
+  const byId = new Map(accounts().map((a) => [a.id, a]));
+  S.settings.accounts = ids.map((id) => byId.get(id)).filter(Boolean).concat(accounts().filter((a) => !ids.includes(a.id)));
+  try { await invoke('reorder_accounts', { ids }); } catch (e) { toast(errText(e), true); }
+  renderSidebar();
+  if (page === 'home' && !visible) renderMain();
+});
+
+// ---------------------------------------------------------------- add account: pick an app
+async function pickApp() {
+  // The open account's page sits above Mnemo's own pages; step aside while the picker is up.
+  const prev = visible;
+  if (prev) {
+    await invoke('show_page');
+    visible = null;
+    renderSidebar();
+    await renderMain();
+  }
+  const services = S.services || [];
+  const back = el(`<div class="modal-back"><div class="card modal app-picker">
+    <div class="row"><h2 class="grow">Thêm tài khoản</h2><button class="btn icon ghost" data-cancel title="Đóng (Esc)">${ICON.close}</button></div>
+    <div class="muted small">Chọn ứng dụng. Mỗi tài khoản có hồ sơ trình duyệt riêng, nên bạn thêm được nhiều tài khoản của cùng một ứng dụng.</div>
+    <div class="app-grid">${services.map((s) => `<button class="app-tile" data-svc="${esc(s.id)}" title="${esc(s.url)}">${svcIcon(s.id, 44)}<span>${esc(s.name)}</span></button>`).join('')}</div>
+  </div></div>`);
+  document.body.appendChild(back);
+  let chosen = false;
+  const close = () => {
+    back.remove();
+    document.removeEventListener('keydown', onKey);
+    if (!chosen && prev) showAccount(prev);
+  };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  back.querySelector('[data-cancel]').addEventListener('click', close);
+  back.addEventListener('click', (e) => { if (e.target === back) close(); });
+  back.querySelectorAll('[data-svc]').forEach((b) => b.addEventListener('click', () => {
+    chosen = true;
+    close();
+    addAccount(b.dataset.svc);
+  }));
 }
 
 async function showAccount(id) {

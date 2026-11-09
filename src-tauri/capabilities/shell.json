@@ -17,6 +17,7 @@
     "allow-add-account",
     "allow-update-account",
     "allow-move-account",
+    "allow-reorder-accounts",
     "allow-remove-account",
     "allow-show-account",
     "allow-show-page",
