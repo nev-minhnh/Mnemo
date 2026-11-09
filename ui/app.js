@@ -62,6 +62,8 @@ function renderSidebar() {
   const compact = !!S.settings.sidebar_compact;
   const nav = (id, icon, label, extra) =>
     `<button class="side-item ${extra || ''} ${!visible && page === id ? 'active' : ''}" data-page="${id}" title="${label}">${ICON[icon]}<span class="side-label">${label}</span></button>`;
+  // On a horizontal bar the add button stays outside the scrolling row, always in view.
+  const addBtn = `<button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>`;
   const total = accounts().reduce((n, a) => n + ((S.unread || {})[a.id] || 0), 0);
   sb.innerHTML = `
     <div class="side-head">
@@ -78,8 +80,9 @@ function renderSidebar() {
           ${n && !compact ? `<span class="pill">${n > 999 ? '999+' : n}</span>` : ''}
         </button>`;
       }).join('')}
-      <button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>
+      ${barHorizontal() ? '' : addBtn}
     </div>
+    ${barHorizontal() ? `<div class="add-fixed">${addBtn}</div>` : ''}
     <div class="side-nav">
       <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${barHorizontal() ? (compact ? '»' : '«') : (compact !== (barPos() === 'right') ? '›' : '‹')}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
       ${nav('home', 'home', 'Trang chủ')}
