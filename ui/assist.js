@@ -31,8 +31,8 @@ function showCheck(v) {
   out.innerHTML = `<div class="row"><b class="grow">${A.issues.length} gợi ý</b><button class="btn sm" id="fix-all">Sửa tất cả</button></div>`
     + A.issues.map((i, n) => `<div class="issue" data-n="${n}">
       <div class="row"><span class="badge accent">${esc(TYPE_LABEL[i.type] || i.type || 'Gợi ý')}</span><span class="grow"></span><button class="btn sm" data-fix="${n}">Sửa</button></div>
-      <div><del>${esc(i.original)}</del> → <ins>${esc(i.suggestion)}</ins></div>
-      ${i.explanation ? `<div class="small muted">${esc(i.explanation)}</div>` : ''}
+      <div data-noi18n><del>${esc(i.original)}</del> → <ins>${esc(i.suggestion)}</ins></div>
+      ${i.explanation ? `<div class="small muted" data-noi18n>${esc(i.explanation)}</div>` : ''}
     </div>`).join('');
   $('#fix-all').addEventListener('click', () => {
     $('#draft').value = v.corrected || $('#draft').value;
@@ -47,8 +47,8 @@ function showCheck(v) {
 }
 
 function showText(v) {
-  $('#out').innerHTML = `<div class="result"><div class="row"><b class="grow">${esc(v.title || 'Kết quả')}</b><button class="btn sm" id="use">Dùng bản này</button></div>
-    <div style="white-space:pre-wrap;margin-top:6px">${esc(v.text)}</div></div>`;
+  $('#out').innerHTML = `<div class="result"><div class="row"><b class="grow"${v.title ? ' data-noi18n' : ''}>${esc(v.title || 'Kết quả')}</b><button class="btn sm" id="use">Dùng bản này</button></div>
+    <div style="white-space:pre-wrap;margin-top:6px" data-noi18n>${esc(v.text)}</div></div>`;
   $('#use').addEventListener('click', () => { $('#draft').value = v.text; });
 }
 
@@ -83,6 +83,7 @@ async function load() {
   A.loadedAt = Date.now();
   A.state = st;
   applyTheme(st.theme);
+  setLang(st.language);
   A.choice = Object.assign({}, A.state.choice);
   A.original = A.state.text || '';
   A.action = 'check';

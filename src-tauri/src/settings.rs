@@ -15,15 +15,19 @@ pub enum ServiceId {
     Instagram,
     Telegram,
     Zalo,
+    Discord,
+    Wechat,
 }
 
 impl ServiceId {
-    pub const ALL: [ServiceId; 5] = [
+    pub const ALL: [ServiceId; 7] = [
         ServiceId::Whatsapp,
         ServiceId::Messenger,
         ServiceId::Instagram,
         ServiceId::Telegram,
         ServiceId::Zalo,
+        ServiceId::Discord,
+        ServiceId::Wechat,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -33,6 +37,8 @@ impl ServiceId {
             ServiceId::Instagram => "instagram",
             ServiceId::Telegram => "telegram",
             ServiceId::Zalo => "zalo",
+            ServiceId::Discord => "discord",
+            ServiceId::Wechat => "wechat",
         }
     }
 
@@ -43,6 +49,8 @@ impl ServiceId {
             ServiceId::Instagram => "Instagram",
             ServiceId::Telegram => "Telegram",
             ServiceId::Zalo => "Zalo",
+            ServiceId::Discord => "Discord",
+            ServiceId::Wechat => "WeChat",
         }
     }
 
@@ -405,6 +413,8 @@ pub struct Settings {
     pub accounts: Vec<Account>,
     /// "system", "light" or "dark".
     pub theme: String,
+    /// Interface language: "vi" or "en". AI answers follow it.
+    pub language: String,
     /// Sidebar shows only avatars.
     pub sidebar_compact: bool,
     /// Start hidden in the tray when Windows starts.
@@ -427,6 +437,7 @@ impl Default for Settings {
             rules: DownloadRules::default(),
             accounts: vec![],
             theme: "system".into(),
+            language: "vi".into(),
             sidebar_compact: false,
             start_with_windows: false,
             close_to_tray: true,

@@ -9,13 +9,13 @@
     #list { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; height: 100vh; padding: 4px 6px; }
     .note {
       position: relative; display: grid; grid-template-columns: 40px 1fr; gap: 4px 10px; padding: 10px 12px;
-      height: 124px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border);
-      box-shadow: 0 6px 24px rgba(10, 8, 30, .28); cursor: pointer; animation: slide .2s ease-out; overflow: hidden;
+      height: 124px; border-radius: 12px; background: linear-gradient(135deg, var(--surface), var(--surface-2)); border: 1px solid var(--border);
+      box-shadow: 0 6px 24px rgba(3, 8, 30, .35), inset 3px 0 0 var(--gold-2); cursor: pointer; animation: slide .2s ease-out; overflow: hidden;
     }
-    .note:hover { border-color: var(--accent); }
+    .note:hover { border-color: var(--accent-2); box-shadow: 0 6px 26px var(--glow), inset 3px 0 0 var(--gold-2); }
     @keyframes slide { from { transform: translateX(24px); opacity: 0; } }
     .note .av { grid-row: 1 / span 4; align-self: start; }
-    .note .app { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; color: var(--accent); }
+    .note .app { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; color: var(--gold); letter-spacing: .02em; }
     .note .line { display: flex; gap: 6px; font-size: 12.5px; min-width: 0; }
     .note .line b { flex: none; color: var(--text-2); font-weight: 600; }
     .note .line span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -29,6 +29,7 @@
 </head>
 <body>
   <div id="list"></div>
+  <script src="i18n.js"></script>
   <script src="common.js"></script>
   <script src="notify.js"></script>
 </body>

@@ -419,6 +419,8 @@ pub fn image_data_url(bytes: &[u8], mime_hint: &str) -> Option<String> {
         "image/webp"
     } else if bytes.starts_with(b"GIF8") {
         "image/gif"
+    } else if bytes.starts_with(&[0, 0, 1, 0]) {
+        "image/x-icon"
     } else if mime_hint == "image/avif" {
         "image/avif"
     } else {

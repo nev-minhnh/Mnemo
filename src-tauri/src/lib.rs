@@ -8,6 +8,7 @@ pub mod archive;
 pub mod capture;
 pub mod commands;
 pub mod crypto;
+pub mod icons;
 pub mod importers;
 pub mod media;
 pub mod notify;
@@ -105,6 +106,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         sidebar_w: Mutex::new(webviews::SIDEBAR_W),
         avatars: Mutex::new(load_avatars(&config_dir_for_avatars)),
         notices: Mutex::new(vec![]),
+        icons: Mutex::new(icons::load_cached(&config_dir_for_avatars)),
         http,
     };
     if key.is_some() {
@@ -124,16 +126,24 @@ pub fn show_main(app: &tauri::AppHandle) {
     }
 }
 
-fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+/// The tray menu in the interface language.
+pub fn tray_menu(app: &tauri::AppHandle, en: bool) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     use tauri::menu::{MenuBuilder, MenuItemBuilder};
-    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-    let open = MenuItemBuilder::with_id("open", "Mở Mnemo").build(app)?;
-    let quit = MenuItemBuilder::with_id("quit", "Thoát Mnemo").build(app)?;
-    let menu = MenuBuilder::new(app)
+    let open =
+        MenuItemBuilder::with_id("open", if en { "Open Mnemo" } else { "Mở Mnemo" }).build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", if en { "Quit Mnemo" } else { "Thoát Mnemo" })
+        .build(app)?;
+    MenuBuilder::new(app)
         .item(&open)
         .separator()
         .item(&quit)
-        .build()?;
+        .build()
+}
+
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    let en = app.state::<AppState>().settings().language == "en";
+    let menu = tray_menu(app.handle(), en)?;
     let mut tray = TrayIconBuilder::with_id("mnemo")
         .tooltip("Mnemo – Every chat in sight, locked safe and tight.")
         .menu(&menu)
@@ -219,25 +229,24 @@ pub fn run() {
                 _ => {}
             });
 
+            tauri::async_runtime::spawn(icons::refresh(app.handle().clone()));
+
             // Open the accounts' pages in the background so messages keep arriving.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(800));
                 let accounts = handle.state::<AppState>().settings().accounts;
                 for (i, a) in accounts.iter().enumerate() {
-                    let h = handle.clone();
-                    let acc = a.clone();
-                    let first = i == 0;
-                    let _ = handle.run_on_main_thread(move || {
-                        if let Ok(wv) = webviews::ensure_account(&h, &acc) {
-                            if !first
-                                || lock(&h.state::<AppState>().visible).as_deref()
-                                    != Some(acc.id.as_str())
-                            {
-                                let _ = wv.hide();
-                            }
+                    // Created from this worker thread: creating a webview from the main
+                    // thread's own callbacks waits on the main thread and freezes the window.
+                    let _ = i;
+                    if let Ok(wv) = webviews::ensure_account(&handle, a) {
+                        if lock(&handle.state::<AppState>().visible).as_deref()
+                            != Some(a.id.as_str())
+                        {
+                            let _ = wv.hide();
                         }
-                    });
+                    }
                     std::thread::sleep(std::time::Duration::from_millis(400));
                 }
             });

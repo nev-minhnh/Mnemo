@@ -87,11 +87,17 @@ fn publish(app: &AppHandle) {
     let state = app.state::<AppState>();
     let list = lock(&state.notices).clone();
     place(app, list.len());
-    let duration = state.settings().notify.duration_secs.clamp(3, 120);
+    let st = state.settings();
     let _ = app.emit_to(
         NOTIFY,
         "notices",
-        json!({ "notices": list, "duration": duration }),
+        json!({
+            "notices": list,
+            "duration": st.notify.duration_secs.clamp(3, 120),
+            "language": st.language,
+            "theme": st.theme,
+            "icons": *lock(&state.icons),
+        }),
     );
 }
 
@@ -131,7 +137,7 @@ pub struct PageNotice {
 
 /// Called by an app's page instead of showing its own notification.
 #[tauri::command]
-pub fn mnemo_notify(
+pub async fn mnemo_notify(
     app: AppHandle,
     webview: Webview,
     state: State<'_, AppState>,
@@ -188,7 +194,14 @@ pub fn mnemo_notify(
 
 #[tauri::command]
 pub fn notices_state(state: State<'_, AppState>) -> Value {
-    json!({ "notices": *lock(&state.notices), "duration": state.settings().notify.duration_secs.clamp(3, 120) })
+    let st = state.settings();
+    json!({
+        "notices": *lock(&state.notices),
+        "duration": st.notify.duration_secs.clamp(3, 120),
+        "language": st.language,
+        "theme": st.theme,
+        "icons": *lock(&state.icons),
+    })
 }
 
 #[tauri::command]
@@ -205,7 +218,11 @@ pub fn notice_dismiss(app: AppHandle, state: State<'_, AppState>, id: Option<Str
 
 /// Opens Mnemo on the notice's account and replays the app's own click on it.
 #[tauri::command]
-pub fn notice_open(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<(), String> {
+pub async fn notice_open(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
     let notice = {
         let mut n = lock(&state.notices);
         let pos = n
@@ -279,7 +296,11 @@ pub fn unread_rose(app: &AppHandle, account_id: &str, before: u32, now: u32) {
                 app: account.service.display().into(),
                 from: "—".into(),
                 to: account.label.clone(),
-                text: format!("{new} tin nhắn mới ({now} chưa đọc)"),
+                text: if state.settings().language == "en" {
+                    format!("{new} new messages ({now} unread)")
+                } else {
+                    format!("{new} tin nhắn mới ({now} chưa đọc)")
+                },
                 ts: crate::util::now_ms(),
                 avatar: lock(&state.avatars).get(&account_id).cloned(),
                 page_id: None,
@@ -368,7 +389,11 @@ pub fn update_taskbar(app: &AppHandle) {
     };
     if let Some(tray) = app.tray_by_id("mnemo") {
         let tip = if total > 0 {
-            format!("Mnemo – {total} tin chưa đọc")
+            if s.language == "en" {
+                format!("Mnemo – {total} unread")
+            } else {
+                format!("Mnemo – {total} tin chưa đọc")
+            }
         } else {
             "Mnemo".to_string()
         };

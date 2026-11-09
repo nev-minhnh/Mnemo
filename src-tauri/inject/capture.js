@@ -377,6 +377,10 @@
     if (!text && !media.length) return null;
     let ts = null;
     if (mc.timeParse === 'whatsapp') ts = parseWhatsAppTime(field(el, mc.timeSource || mc.time));
+    if (mc.timeParse === 'iso') {
+      const t = Date.parse(timeText);
+      ts = isNaN(t) ? null : t;
+    }
     const recalled = !!(text && (mc.recalled || []).some((p) => text.indexOf(p) !== -1));
     return {
       key: rawKey.slice(0, 400),

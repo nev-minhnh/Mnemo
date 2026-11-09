@@ -12,6 +12,8 @@ async function refresh() {
   S = await invoke('get_state');
   visible = S.visible;
   applyTheme(S.settings.theme);
+  window.SVC_ICONS = S.icons || {};
+  setLang(S.settings.language);
   renderSidebar();
 }
 
@@ -28,7 +30,7 @@ function avatarHtml(a, size) {
   const mini = Math.max(14, Math.round(size * 0.42));
   return `<span class="avatar" style="width:${size}px;height:${size}px">
     ${src ? `<img src="${src}" alt="">` : `<span class="initial" style="background:hsl(${hue} 55% 52%);font-size:${Math.round(size * 0.42)}px">${esc(Array.from(name)[0].toUpperCase())}</span>`}
-    <span class="mini svc ${a.service}" style="width:${mini}px;height:${mini}px;font-size:${Math.round(mini * 0.46)}px">${SERVICE_SHORT[a.service]}</span>
+    ${svcMini(a.service, mini)}
   </span>`;
 }
 
@@ -58,13 +60,14 @@ function renderSidebar() {
         const n = (S.unread || {})[a.id] || 0;
         return `<button class="acc-row ${visible === a.id ? 'active' : ''}" data-acc="${esc(a.id)}" title="${esc(SERVICE_NAME[a.service])} · ${esc(a.label)}${n ? ` · ${n} chưa đọc` : ''} (chuột phải: cài đặt)">
           <span class="acc-avatar">${avatarHtml(a, 38)}${n && compact ? `<span class="count">${n > 99 ? '99+' : n}</span>` : ''}</span>
-          <span class="acc-text side-label"><span class="acc-app">${esc(SERVICE_NAME[a.service])}</span><span class="acc-name">${esc(a.label)}</span></span>
+          <span class="acc-text side-label"><span class="acc-app">${esc(SERVICE_NAME[a.service])}</span><span class="acc-name" data-noi18n>${esc(a.label)}</span></span>
           ${n && !compact ? `<span class="pill">${n > 999 ? '999+' : n}</span>` : ''}
         </button>`;
       }).join('')}
-      <button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>
+      ${accounts().length ? '' : `<button class="acc-row add" data-page="home" title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>`}
     </div>
     <div class="side-nav">
+      ${nav('home', 'home', 'Trang chủ')}
       ${`<button class="side-item ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
       ${nav('archive', 'archive', 'Kho tin nhắn')}
       ${nav('media', 'media', 'Tệp đã lưu')}
@@ -76,7 +79,6 @@ function renderSidebar() {
     b.addEventListener('click', () => showAccount(b.dataset.acc));
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); openPage('account:' + b.dataset.acc); });
   });
-  sb.querySelector('[data-add]').addEventListener('click', () => openPage('home', true));
   sb.querySelector('[data-panel]').addEventListener('click', () => togglePanel());
   $('#collapse').addEventListener('click', async () => {
     S.settings.sidebar_compact = !S.settings.sidebar_compact;
@@ -143,7 +145,7 @@ function renderHome(main) {
         const stats = (S.stats || {})[a.id] || {};
         const n = (S.unread || {})[a.id] || 0;
         return `<div class="card svc-card">
-          <div class="row">${avatarHtml(a, 42)}<div class="grow"><div class="small muted">${SERVICE_NAME[a.service]}</div><b class="ellipsis">${esc(a.label)}</b></div>
+          <div class="row">${avatarHtml(a, 42)}<div class="grow"><div class="small muted">${SERVICE_NAME[a.service]}</div><b class="ellipsis" data-noi18n>${esc(a.label)}</b></div>
           ${n ? `<span class="badge danger">${n} chưa đọc</span>` : ''}</div>
           <div class="small muted">${a.capture && S.settings.capture_enabled ? `Đang lưu tin nhắn · phiên này: ${stats.messages || 0} tin, ${stats.media || 0} tệp` : 'Không lưu tin nhắn'}</div>
           <div class="row"><button class="btn sm primary" data-open="${esc(a.id)}">Mở</button><button class="btn sm" data-acc-page="${esc(a.id)}">Cài đặt</button></div>
@@ -179,14 +181,20 @@ function addAccount(service) {
   const close = () => back.remove();
   back.querySelector('[data-cancel]').addEventListener('click', close);
   back.addEventListener('click', (e) => { if (e.target === back) close(); });
+  let adding = false;
   const ok = async () => {
+    if (adding) return;
+    adding = true;
+    const btn = back.querySelector('[data-ok]');
+    btn.disabled = true;
+    btn.insertAdjacentHTML('afterbegin', '<span class="spinner"></span>');
     try {
       const acc = await invoke('add_account', { service, label: input.value });
       close();
       await refresh();
       visible = acc.id;
       renderSidebar();
-    } catch (e) { toast(errText(e), true); }
+    } catch (e) { adding = false; btn.disabled = false; const sp = btn.querySelector('.spinner'); if (sp) sp.remove(); toast(errText(e), true); }
   };
   back.querySelector('[data-ok]').addEventListener('click', ok);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') close(); });
@@ -242,7 +250,7 @@ function renderChatList() {
     list.innerHTML = `<div class="row" style="padding:10px 14px"><button class="btn sm" id="back-chats">← Danh sách hội thoại</button><span class="small muted">${archive.hits.length} kết quả</span></div>
       <div class="hits">${archive.hits.map((h, i) => `<div class="hit-item" data-i="${i}">
         <div class="row small">${svcIcon(h.service, 18)}<b class="ellipsis grow">${esc(h.chat_title || 'Hội thoại')}</b><span class="faint">${fmtTime(h.ts)}</span></div>
-        <div class="small"><span class="muted">${esc(h.sender || '')}${h.sender ? ': ' : ''}</span>${esc(h.snippet).replace(/\[\[/g, '<mark>').replace(/\]\]/g, '</mark>')}</div>
+        <div class="small" data-noi18n><span class="muted">${esc(h.sender || '')}${h.sender ? ': ' : ''}</span>${esc(h.snippet).replace(/\[\[/g, '<mark>').replace(/\]\]/g, '</mark>')}</div>
       </div>`).join('') || '<div class="empty">Không tìm thấy</div>'}</div>`;
     $('#back-chats').addEventListener('click', () => { archive.hits = null; renderChatList(); });
     list.querySelectorAll('.hit-item').forEach((n) => n.addEventListener('click', () => {
@@ -260,7 +268,7 @@ function renderChatList() {
     return `<div class="chat-item ${archive.chatId === c.id ? 'active' : ''}" data-id="${c.id}">
       ${svcIcon(c.service, 30)}
       <div class="grow">
-        <div class="row"><b class="ellipsis grow">${esc(c.title || c.chat_key)}</b>${c.unseen ? `<span class="badge accent">${c.unseen}</span>` : ''}</div>
+        <div class="row"><b class="ellipsis grow" data-noi18n>${esc(c.title || c.chat_key)}</b>${c.unseen ? `<span class="badge accent">${c.unseen}</span>` : ''}</div>
         <div class="meta"><span class="ellipsis">${esc(acc ? acc.label : SERVICE_NAME[c.service])}${c.is_group ? ' · nhóm' : ''}</span><span>${c.count} tin</span></div>
       </div>
     </div>`;
@@ -279,14 +287,14 @@ async function openChat(chatId, aroundId) {
 }
 
 function messageHtml(m, chat) {
-  if (m.kind === 'service') return `<div class="msg service">${esc(m.text)}</div>`;
+  if (m.kind === 'service') return `<div class="msg service" data-noi18n>${esc(m.text)}</div>`;
   const out = m.outgoing === true;
-  const who = !out && chat && chat.is_group && m.sender ? `<div class="who">${esc(m.sender)}</div>` : '';
+  const who = !out && chat && chat.is_group && m.sender ? `<div class="who" data-noi18n>${esc(m.sender)}</div>` : '';
   const when = m.ts_exact ? fmtTime(m.ts) : `${esc(m.time_text || '')} ≈ ${fmtTime(m.ts)}`;
   const media = m.media.map((x) => x.kind === 'image' && x.size < 8 * 1024 * 1024
     ? `<img class="preview" data-media="${x.id}" alt="${esc(x.file_name)}" title="${esc(x.file_name)}">`
-    : `<span class="file-chip" data-open-media="${x.id}">${ICON.file}<span>${esc(x.file_name)}</span><span class="faint">${fmtSize(x.size)}</span>${x.encrypted ? ICON.lock : ''}</span>`).join('');
-  const text = m.deleted ? '<span class="deleted">Tin nhắn đã bị thu hồi</span>' : esc(m.text);
+    : `<span class="file-chip" data-open-media="${x.id}">${ICON.file}<span data-noi18n>${esc(x.file_name)}</span><span class="faint">${fmtSize(x.size)}</span>${x.encrypted ? ICON.lock : ''}</span>`).join('');
+  const text = m.deleted ? '<span class="deleted">Tin nhắn đã bị thu hồi</span>' : `<span data-noi18n>${esc(m.text)}</span>`;
   return `<div class="msg ${out ? 'out' : ''} ${archive.around === m.id ? 'hit' : ''}" data-mid="${m.id}">${who}${text}${media}<div class="when">${when}${m.edited ? ' · đã sửa' : ''}</div></div>`;
 }
 
@@ -308,7 +316,7 @@ function renderConversation() {
   }).join('');
   conv.innerHTML = `
     <div class="conv-head">${svcIcon(chat.service, 34)}
-      <div class="grow"><b class="ellipsis">${esc(chat.title || chat.chat_key)}</b>
+      <div class="grow"><b class="ellipsis" data-noi18n>${esc(chat.title || chat.chat_key)}</b>
         <div class="small muted">${esc(acc ? acc.label : SERVICE_NAME[chat.service])} · ${chat.count} tin${chat.unseen ? ` · ${chat.unseen} chưa xem` : ''}</div></div>
       ${chat.unseen ? '<button class="btn sm" id="seen">Đánh dấu đã xem</button>' : ''}
       <button class="btn sm" id="ai-chat">${ICON.sparkle} AI</button>
@@ -368,7 +376,7 @@ async function renderMedia(main) {
     ${items.length ? `<div class="card"><table class="table"><thead><tr><th></th><th>Tên</th><th>Loại</th><th>Dung lượng</th><th>Nguồn</th><th>Lúc lưu</th><th></th></tr></thead><tbody>
       ${items.map((m) => `<tr>
         <td>${m.kind === 'image' ? `<img class="thumb" data-media="${m.id}" alt="${esc(m.file_name)}">` : `<span class="thumb row" style="justify-content:center">${ICON.file}</span>`}</td>
-        <td><div class="ellipsis" style="max-width:340px" title="${esc(m.path)}">${esc(m.file_name)}</div>${m.encrypted ? '<span class="badge accent">Mã hóa</span>' : ''}</td>
+        <td><div class="ellipsis" style="max-width:340px" title="${esc(m.path)}" data-noi18n>${esc(m.file_name)}</div>${m.encrypted ? '<span class="badge accent">Mã hóa</span>' : ''}</td>
         <td>${esc(m.kind)}</td><td>${fmtSize(m.size)}</td><td><span class="badge">${origin[m.origin] || esc(m.origin)}</span></td>
         <td class="small muted">${fmtTime(m.saved_at)}</td>
         <td><div class="row"><button class="btn sm" data-open-media="${m.id}">Mở</button><button class="btn sm ghost" data-reveal="${m.id}">${ICON.folder}</button></div></td>
@@ -547,6 +555,8 @@ async function renderSettings(main) {
     </div></div></div>
 
     <div class="section"><h2>Giao diện</h2><div class="card pad"><div class="form">
+      <span class="label">Ngôn ngữ</span><select data-s="language" style="width:200px" data-noi18n>
+        ${[['vi', 'Tiếng Việt'], ['en', 'English']].map(([v, l]) => `<option value="${v}" ${s.language === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <span class="label">Chủ đề</span><select data-s="theme" style="width:200px">
         ${[['system', 'Theo Windows'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<option value="${v}" ${s.theme === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
     </div></div></div>
@@ -560,6 +570,12 @@ async function renderSettings(main) {
   main.querySelectorAll('[data-s]').forEach((input) => input.addEventListener('change', () => {
     s[input.dataset.s] = input.type === 'checkbox' ? input.checked : input.value;
     if (input.dataset.s === 'theme') applyTheme(s.theme);
+    if (input.dataset.s === 'language') {
+      setLang(s.language);
+      renderSidebar();
+      renderMain();
+      if (panelOpen) renderPanel();
+    }
     saveSettingsSoon();
   }));
   main.querySelectorAll('[data-acc-notify]').forEach((input) => input.addEventListener('change', async () => {
@@ -657,8 +673,8 @@ function renderProviders() {
         ${isCli ? '' : view.has_key ? '<span class="badge ok">Đã có key</span>' : p.kind === 'compatible' ? '' : '<span class="badge warn">Chưa có key</span>'}
         <label class="check small"><span class="switch"><input type="checkbox" data-en ${p.enabled ? 'checked' : ''}><span></span></span>Bật</label>
       </div>
-      ${isCli ? `<div class="row"><input type="text" class="grow mono" data-cli placeholder="Tự tìm ${p.kind === 'claude_code' ? 'claude' : 'codex'} trên máy (hoặc nhập đường dẫn đầy đủ)" value="${esc(p.cli_path)}"></div>
-        <div class="small muted">Dùng chính tài khoản bạn đã đăng nhập trong ${p.kind === 'claude_code' ? 'Claude Code (lệnh <span class="mono">claude</span>)' : 'Codex CLI (lệnh <span class="mono">codex login</span>)'}.</div>`
+      ${isCli ? `<div class="row"><input type="text" class="grow mono" data-cli placeholder="${window.LANG === 'en' ? `Finds ${p.kind === 'claude_code' ? 'claude' : 'codex'} on this computer (or enter the full path)` : `Tự tìm ${p.kind === 'claude_code' ? 'claude' : 'codex'} trên máy (hoặc nhập đường dẫn đầy đủ)`}" value="${esc(p.cli_path)}"></div>
+        <div class="small muted">${window.LANG === 'en' ? `Uses the account you signed in with in ${p.kind === 'claude_code' ? 'Claude Code (the <span class="mono">claude</span> command)' : 'Codex CLI (<span class="mono">codex login</span>)'}.` : `Dùng chính tài khoản bạn đã đăng nhập trong ${p.kind === 'claude_code' ? 'Claude Code (lệnh <span class="mono">claude</span>)' : 'Codex CLI (lệnh <span class="mono">codex login</span>)'}.`}</div>`
       : `<div class="row"><input type="password" class="grow" data-key placeholder="${view.has_key ? '•••••••• (đã lưu – nhập để thay)' : 'Dán API key'}"><button class="btn sm" data-savekey>Lưu key</button>${view.has_key ? '<button class="btn sm ghost danger" data-delkey>Xóa key</button>' : ''}</div>
         ${p.kind === 'compatible' || custom ? `<div class="row"><input type="text" class="grow mono" data-url value="${esc(p.base_url)}"></div>` : ''}`}
       <div class="row wrap">
@@ -732,7 +748,7 @@ function renderAccount(main, id) {
   if (!a) { openPage('home'); return; }
   const stats = (S.stats || {})[a.id] || {};
   main.innerHTML = `<div class="page">
-    <div class="page-head">${avatarHtml(a, 56)}<div class="grow"><p class="muted" style="margin:0">${SERVICE_NAME[a.service]}</p><h1>${esc(a.label)}</h1></div>
+    <div class="page-head">${avatarHtml(a, 56)}<div class="grow"><p class="muted" style="margin:0">${SERVICE_NAME[a.service]}</p><h1 data-noi18n>${esc(a.label)}</h1></div>
       <button class="btn primary" id="acc-open">Mở</button></div>
     <div class="section"><div class="card pad"><div class="form">
       <span class="label">Tên hiển thị</span><input type="text" data-a="label" value="${esc(a.label)}" maxlength="60">
@@ -861,7 +877,7 @@ function renderPanelOne(box, target) {
     ${panel.busy ? '<div class="row muted small"><div class="spinner"></div>AI đang xử lý…</div>' : ''}
     ${panel.error ? `<div class="notice danger">${esc(panel.error)}</div>` : ''}
     ${panel.result ? `<div class="result">${md(panel.result.text)}<div class="small faint" style="margin-top:6px">${panel.result.count} tin${panel.result.truncated ? ' · đã cắt bớt (tăng "Số tin tối đa gửi cho AI" trong Cài đặt)' : ''}</div></div>` : ''}
-    ${panel.replies ? `<div class="col">${panel.replies.map((r, i) => `<div class="reply"><div class="row"><span class="badge accent">${esc(r.label || 'Gợi ý')}</span></div><div class="text">${esc(r.text)}</div>
+    ${panel.replies ? `<div class="col">${panel.replies.map((r, i) => `<div class="reply"><div class="row"><span class="badge accent">${esc(r.label || 'Gợi ý')}</span></div><div class="text" data-noi18n>${esc(r.text)}</div>
       <div class="row">${visible ? `<button class="btn sm primary" data-insert="${i}">Chèn vào ô soạn tin</button>` : ''}<button class="btn sm" data-copy="${i}">Sao chép</button></div></div>`).join('')}</div>` : ''}`;
   $('#pfrom').addEventListener('change', (e) => { panel.from = e.target.value; });
   $('#pto').addEventListener('change', (e) => { panel.to = e.target.value; });
@@ -908,7 +924,7 @@ async function renderPanelMulti(box, service, account) {
   const drawList = (filter) => {
     const f = (filter || '').toLowerCase();
     $('#mlist').innerHTML = panel.chats.filter((c) => !f || (c.title || '').toLowerCase().includes(f)).map((c) => `<label>
-      <input type="checkbox" data-c="${c.id}" ${panel.multi.has(c.id) ? 'checked' : ''}>${svcIcon(c.service, 20)}<span class="ellipsis grow">${esc(c.title || c.chat_key)}</span><span class="faint small">${c.count}</span></label>`).join('') || '<div class="empty small">Chưa có hội thoại</div>';
+      <input type="checkbox" data-c="${c.id}" ${panel.multi.has(c.id) ? 'checked' : ''}>${svcIcon(c.service, 20)}<span class="ellipsis grow" data-noi18n>${esc(c.title || c.chat_key)}</span><span class="faint small">${c.count}</span></label>`).join('') || '<div class="empty small">Chưa có hội thoại</div>';
     $('#mlist').querySelectorAll('[data-c]').forEach((cb) => cb.addEventListener('change', () => {
       const id = +cb.dataset.c;
       if (cb.checked) panel.multi.add(id); else panel.multi.delete(id);
@@ -917,7 +933,7 @@ async function renderPanelMulti(box, service, account) {
     $('#mcount').textContent = `${panel.multi.size} đã chọn`;
   };
   const drawQa = () => {
-    $('#qa').innerHTML = panel.qa.map((t) => t.role === 'user' ? `<div class="q">${esc(t.content)}</div>` : `<div class="a">${t.error ? `<span style="color:var(--danger)">${esc(t.content)}</span>` : md(t.content)}</div>`).join('')
+    $('#qa').innerHTML = panel.qa.map((t) => t.role === 'user' ? `<div class="q" data-noi18n>${esc(t.content)}</div>` : `<div class="a">${t.error ? `<span style="color:var(--danger)">${esc(t.content)}</span>` : md(t.content)}</div>`).join('')
       + (panel.busy ? '<div class="row muted small"><div class="spinner"></div>AI đang đọc các hội thoại…</div>' : '');
   };
   drawList('');
@@ -996,6 +1012,16 @@ async function start() {
     importState.progress = e.payload;
     const n = $('#imp-progress');
     if (n) n.textContent = `${e.payload.chats} hội thoại · ${e.payload.messages} tin · ${e.payload.media} tệp — ${e.payload.current}`;
+  });
+  listen('accounts', async () => {
+    await refresh();
+    if (page === 'home' && !visible) renderMain();
+  });
+  listen('icons', (e) => {
+    window.SVC_ICONS = e.payload || {};
+    if (S) S.icons = window.SVC_ICONS;
+    renderSidebar();
+    if (page === 'home' && !visible) renderMain();
   });
   listen('download', (e) => toast(`Đã tải về: ${e.payload.name}`));
   listen('avatar', (e) => {

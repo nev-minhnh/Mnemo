@@ -3,15 +3,17 @@
 <h1 align="center">Mnemo</h1>
 <p align="center"><b>Every chat in sight, locked safe and tight.</b></p>
 
-Mnemo puts **WhatsApp, Messenger, Instagram, Telegram and Zalo** in one Windows 11 window, keeps an **encrypted local archive** of your messages and files (like POP3 for chats), and adds an **AI writing and summary assistant** that uses your own AI accounts.
+Mnemo puts **WhatsApp, Messenger, Instagram, Telegram, Zalo, Discord and WeChat** in one Windows 11 window, keeps an **encrypted local archive** of your messages and files (like POP3 for chats), and adds an **AI writing and summary assistant** that uses your own AI accounts.
 
-> Mnemo gom WhatsApp, Messenger, Instagram, Telegram và Zalo vào một cửa sổ, lưu bản sao tin nhắn và tệp **trên máy bạn, có mã hóa**, và có trợ lý AI giúp viết, tóm tắt, gợi ý trả lời bằng chính tài khoản AI của bạn.
+> Mnemo gom WhatsApp, Messenger, Instagram, Telegram, Zalo, Discord và WeChat vào một cửa sổ, lưu bản sao tin nhắn và tệp **trên máy bạn, có mã hóa**, và có trợ lý AI giúp viết, tóm tắt, gợi ý trả lời bằng chính tài khoản AI của bạn.
 
 ## Tính năng
 
-**Một cửa sổ cho 5 ứng dụng**
-- Mỗi tài khoản chạy bản web chính chủ (WhatsApp Web, `facebook.com/messages`, Instagram Direct, Telegram Web A, Zalo Web) trong một hồ sơ trình duyệt riêng, nên **thêm được nhiều tài khoản cho cùng một ứng dụng**.
+**Một cửa sổ cho 7 ứng dụng**
+- Mỗi tài khoản chạy bản web chính chủ (WhatsApp Web, `facebook.com/messages`, Instagram Direct, Telegram Web A, Zalo Web, Discord, WeChat Web) trong một hồ sơ trình duyệt riêng, nên **thêm được nhiều tài khoản cho cùng một ứng dụng**.
 - Số tin chưa đọc trên thanh bên; gọi điện, mic, camera và thông báo được cấp quyền sẵn.
+- Giao diện **song ngữ Việt/Anh** (Cài đặt → Giao diện → Ngôn ngữ); câu trả lời của AI theo ngôn ngữ đã chọn.
+- Thẻ "Thêm tài khoản" và huy hiệu nhỏ trên avatar dùng **biểu tượng của chính từng dịch vụ**. Mnemo không đóng gói logo của bên thứ ba: khi chạy, nó tải favicon công khai của trang (qua dịch vụ favicon của Google, dự phòng là `favicon.ico` của chính trang) và lưu tạm trong thư mục cấu hình. Khi chưa tải được thì hiện chữ viết tắt.
 - Messenger và Instagram bị khóa trong phần tin nhắn: bấm vào trang cá nhân hay bài đăng thì mở trong trình duyệt. Mọi liên kết ra ngoài cũng mở trong trình duyệt.
 
 **Thanh bên, thông báo, khay hệ thống**
@@ -72,7 +74,7 @@ Tải `Mnemo-<version>-windows-x64.zip` từ mục Actions/Releases rồi giải
 ## Giới hạn cần biết
 
 - **Mức A chỉ thấy những gì ứng dụng hiển thị.** Hội thoại chưa mở, hoặc tin cũ chưa cuộn tới, sẽ không có trong kho. Hãy dùng mức B để lấp lịch sử cũ.
-- Facebook, Instagram và Zalo hay đổi cấu trúc trang. Nếu một ứng dụng không còn được lưu, hãy chỉnh selector:
+- Facebook, Instagram, Zalo, Discord và WeChat hay đổi cấu trúc trang. Nếu một ứng dụng không còn được lưu, hãy chỉnh selector:
   1. Mở **Cài đặt → Nâng cao → Cấu hình dịch vụ**.
   2. Chép `<dịch vụ>.default.json` thành `<dịch vụ>.json` rồi sửa.
   3. Tải lại tài khoản.
@@ -80,7 +82,9 @@ Tải `Mnemo-<version>-windows-x64.zip` từ mục Actions/Releases rồi giải
   Dùng **DevTools** trong trang tài khoản để dò phần tử. Selector của Telegram và WhatsApp ổn định nhất; selector cho Messenger, Instagram và Zalo dựa trên vai trò/thuộc tính của trang và **chưa được kiểm tra trên tài khoản thật**.
 - **Thời gian tin nhắn:** WhatsApp cho thời gian chính xác đến phút. Telegram, Messenger, Instagram và Zalo chỉ hiển thị giờ, nên kho ghi giờ hiển thị kèm thời điểm lưu (đánh dấu ≈). Tin nhập từ tệp xuất luôn có thời gian chính xác.
 - **"Chưa xem"** là các tin đến nằm sau vạch "tin chưa đọc" của ứng dụng (Telegram), hoặc sau lần cuối bạn trả lời hay bấm "Đánh dấu đã xem".
-- Zalo chưa có bản xuất chính thức đọc được, nên chỉ có mức A.
+- Zalo, Discord và WeChat chưa có bản xuất chính thức đọc được, nên chỉ có mức A.
+- **WeChat Web** bị Tencent chặn đăng nhập với nhiều tài khoản (nhất là tài khoản mới hoặc đăng ký ngoài một số khu vực). Nếu trang báo không thể đăng nhập bằng web, Mnemo không thể vượt qua giới hạn đó.
+- Discord: Mnemo chỉ chạy bản web chính chủ bằng tài khoản người dùng bình thường, không tự động hóa gì; selector cho Discord và WeChat **chưa được kiểm tra trên tài khoản thật**.
 - Avatar tự động lấy được trên WhatsApp và Messenger (nếu trang hiển thị). Telegram Web không hiện avatar của chính bạn, nên với Telegram (và khi selector không khớp) hãy chọn ảnh trong trang tài khoản.
 - Thông báo dựa vào việc app gửi thông báo web. Nếu một app không gửi, Mnemo vẫn hiện thông báo chung "N tin nhắn mới" khi số chưa đọc tăng.
 - Viber không có bản web nên không được hỗ trợ.

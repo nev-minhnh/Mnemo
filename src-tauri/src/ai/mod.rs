@@ -37,6 +37,12 @@ async fn ask(
     let settings = state.settings();
     let (p, key) = resolve(&settings, state, choice)?;
     let mut system = system.to_string();
+    // Explanations, summaries and labels follow the interface language.
+    if settings.language == "en" {
+        system = system
+            .replace("in Vietnamese", "in English")
+            .replace("Vietnamese label", "English label");
+    }
     if !settings.ai.personal_instructions.trim().is_empty() {
         system.push_str("\n\nThe user's standing preferences:\n");
         system.push_str(settings.ai.personal_instructions.trim());
@@ -136,7 +142,7 @@ pub struct Rect {
 
 /// Called by an app's page: open the writing popup for the draft under the caret.
 #[tauri::command]
-pub fn mnemo_assist_open(
+pub async fn mnemo_assist_open(
     app: AppHandle,
     webview: Webview,
     state: State<'_, AppState>,
@@ -223,6 +229,7 @@ pub fn assist_state(state: State<'_, AppState>) -> Result<Value, String> {
         "providers": provider_views(&s, &state),
         "cached": cached,
         "theme": s.theme,
+        "language": s.language,
     }))
 }
 

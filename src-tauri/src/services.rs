@@ -20,7 +20,7 @@ pub struct ServiceDef {
     pub default_config: &'static str,
 }
 
-pub const SERVICES: [ServiceDef; 5] = [
+pub const SERVICES: [ServiceDef; 7] = [
     ServiceDef {
         id: ServiceId::Whatsapp,
         url: "https://web.whatsapp.com/",
@@ -85,6 +85,40 @@ pub const SERVICES: [ServiceDef; 5] = [
         paths: None,
         media_hosts: &["zadn.vn", "zdn.vn", "zalo.me", "zaloapp.com"],
         default_config: include_str!("../inject/services/zalo.json"),
+    },
+    ServiceDef {
+        id: ServiceId::Discord,
+        url: "https://discord.com/app",
+        hosts: &["discord.com", "discordapp.com"],
+        paths: Some(&[
+            "/",
+            "/app",
+            "/channels",
+            "/login",
+            "/register",
+            "/oauth2",
+            "/ra",
+            "/verify",
+            "/reset",
+            "/authorize",
+            "/api",
+        ]),
+        media_hosts: &["discordapp.com", "discordapp.net", "discord.com"],
+        default_config: include_str!("../inject/services/discord.json"),
+    },
+    ServiceDef {
+        id: ServiceId::Wechat,
+        url: "https://web.wechat.com/",
+        hosts: &[
+            "web.wechat.com",
+            "wechat.com",
+            "wx.qq.com",
+            "wx2.qq.com",
+            "qq.com",
+        ],
+        paths: None,
+        media_hosts: &["qq.com", "qpic.cn", "wechat.com"],
+        default_config: include_str!("../inject/services/wechat.json"),
     },
 ];
 

@@ -10,7 +10,7 @@ function timeText(ms) {
 }
 
 function avatar(n) {
-  const mini = `<span class="mini svc ${esc(n.service)}" style="width:17px;height:17px;font-size:8px">${SERVICE_SHORT[n.service] || ''}</span>`;
+  const mini = svcMini(n.service, 17);
   const inner = n.avatar
     ? `<img src="${n.avatar}" alt="">`
     : `<span class="initial" style="background:var(--accent)">${esc(Array.from(n.to || n.app || '?')[0].toUpperCase())}</span>`;
@@ -32,10 +32,10 @@ function render(list) {
   const shown = list.slice(0, 4).reverse();
   box.innerHTML = shown.map((n) => `<div class="note" data-id="${esc(n.id)}" title="Bấm để mở hội thoại">
     ${avatar(n)}
-    <div class="app">${esc(n.app)}</div>
-    <div class="line"><b>From:</b><span>${esc(n.from)}</span><span class="time">${timeText(n.ts)}</span></div>
-    <div class="line"><b>To:</b><span>${esc(n.to)}</span></div>
-    <div class="body"><b>Nội dung:</b> ${esc(n.text)}</div>
+    <div class="app">[${esc(n.app)}]</div>
+    <div class="line"><b>From:</b><span data-noi18n>${esc(n.from)}</span><span class="time">${timeText(n.ts)}</span></div>
+    <div class="line"><b>To:</b><span data-noi18n>${esc(n.to)}</span></div>
+    <div class="body"><b>Nội dung:</b> <span data-noi18n>${esc(n.text)}</span></div>
     <button class="x" data-x="${esc(n.id)}" title="Đóng">${ICON.close}</button>
   </div>`).join('');
   box.querySelectorAll('.note').forEach((el) => el.addEventListener('click', () => invoke('notice_open', { id: el.dataset.id }).catch(() => {})));
@@ -50,6 +50,9 @@ function render(list) {
 
 function apply(payload) {
   duration = payload.duration || 8;
+  if (payload.icons) window.SVC_ICONS = payload.icons;
+  if (payload.theme) applyTheme(payload.theme);
+  setLang(payload.language);
   render(payload.notices || []);
 }
 

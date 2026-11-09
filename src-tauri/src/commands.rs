@@ -41,6 +41,7 @@ pub fn get_state(app: AppHandle, state: State<'_, AppState>) -> Value {
         "configDir": state.config_dir,
         "providers": crate::ai::ai_providers(state.clone()),
         "avatars": *lock(&state.avatars),
+        "icons": *lock(&state.icons),
     })
 }
 
@@ -60,14 +61,21 @@ pub fn save_settings(
         next.downloads_dir = cur.downloads_dir.clone();
     }
     save(&state, &next)?;
+    let lang_changed = cur.language != next.language;
     *cur = next;
     drop(cur);
+    if lang_changed {
+        let en = state.settings().language == "en";
+        if let (Some(tray), Ok(menu)) = (app.tray_by_id("mnemo"), crate::tray_menu(&app, en)) {
+            let _ = tray.set_menu(Some(menu));
+        }
+    }
     crate::notify::update_taskbar(&app);
     Ok(())
 }
 
 #[tauri::command]
-pub fn add_account(
+pub async fn add_account(
     app: AppHandle,
     state: State<'_, AppState>,
     service: String,
@@ -96,6 +104,8 @@ pub fn add_account(
         save(&state, &s)?;
         account
     };
+    // Show the new account in the sidebar right away; the page itself may take a moment.
+    let _ = app.emit_to(webviews::SHELL, "accounts", &account.id);
     webviews::show_account(&app, &account.id)?;
     Ok(account)
 }
@@ -171,7 +181,7 @@ pub fn remove_account(
 }
 
 #[tauri::command]
-pub fn show_account(app: AppHandle, id: String) -> Result<(), String> {
+pub async fn show_account(app: AppHandle, id: String) -> Result<(), String> {
     webviews::show_account(&app, &id)
 }
 

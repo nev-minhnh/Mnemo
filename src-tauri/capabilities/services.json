@@ -11,7 +11,11 @@
       "https://web.telegram.org/*",
       "https://*.facebook.com/*",
       "https://www.instagram.com/*",
-      "https://chat.zalo.me/*"
+      "https://chat.zalo.me/*",
+      "https://discord.com/*",
+      "https://web.wechat.com/*",
+      "https://wx.qq.com/*",
+      "https://wx2.qq.com/*"
     ]
   },
   "permissions": [
