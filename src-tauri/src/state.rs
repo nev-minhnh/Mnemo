@@ -48,8 +48,8 @@ pub struct AppState {
     pub assist: Mutex<AssistState>,
     /// Width of the shell's sidebar (logical px); accounts are laid out to its right.
     pub sidebar_w: Mutex<f64>,
-    /// Mnemo's sidebar is on the right edge (the app pages keep the left edge).
-    pub sidebar_right: Mutex<bool>,
+    /// Which window edge Mnemo's bar is on: left, right, top or bottom.
+    pub sidebar_pos: Mutex<String>,
     /// Account avatars as data URLs (detected from the app's page or chosen by the person).
     pub avatars: Mutex<HashMap<String, String>>,
     /// Notifications on screen, newest first.

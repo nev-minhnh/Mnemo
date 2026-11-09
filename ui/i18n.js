@@ -283,7 +283,12 @@ const I18N = {
   'Thanh bên Mnemo': 'Mnemo sidebar',
   'Bên trái': 'Left',
   'Bên phải': 'Right',
-  'Đặt bên phải để thanh điều hướng riêng của ứng dụng (WhatsApp, Discord…) nằm sát mép trái cửa sổ, không bị kẹp giữa hai thanh.': 'Put it on the right so an app’s own navigation rail (WhatsApp, Discord…) sits at the window’s left edge instead of next to Mnemo’s.',
+  'Trên cùng': 'Top',
+  'Dưới cùng': 'Bottom',
+  'hội thoại': 'conversations',
+  'tin nhắn': 'messages',
+  'tệp': 'files',
+  'Bên phải: thanh điều hướng riêng của ứng dụng (WhatsApp, Discord…) nằm sát mép trái cửa sổ. Trên cùng / dưới cùng: thanh nằm ngang như các tab, nhường toàn bộ chiều ngang cho ứng dụng.': 'Right: an app’s own navigation rail (WhatsApp, Discord…) keeps the window’s left edge. Top / bottom: a horizontal bar like tabs, leaving the full width to the app.',
   'Ngôn ngữ': 'Language',
   'Theo Windows': 'Follow Windows',
   'Lịch sự hơn': 'More polite',
@@ -318,7 +323,7 @@ const I18N_PATTERNS = [
 // Words inside composed strings ("230 tin · 4 chưa xem"), longest first.
 const I18N_PHRASES = [
   ['Đang lưu tin nhắn', 'Saving messages'], ['tệp bỏ qua theo quy tắc', 'files skipped by rules'],
-  ['(chuột phải: cài đặt · kéo để đổi thứ tự)', '(right-click: settings · drag to reorder)'], ['(chuột phải: cài đặt)', '(right-click: settings)'], ['tin cập nhật', 'updated'], ['tin đã lưu', 'messages saved'],
+  ['(chuột phải: cài đặt · kéo để đổi thứ tự)', '(right-click: settings · drag to reorder)'], ['(chuột phải: cài đặt)', '(right-click: settings)'], ['tin cập nhật', 'updated'], ['tin mới nhất', 'latest'], ['tin đã lưu', 'messages saved'],
   ['đã cắt bớt (tăng', 'shortened (raise'], ['trong Cài đặt)', 'in Settings)'], ['lỗi gần nhất', 'last error'],
   ['hội thoại', 'conversations'], ['chưa đọc', 'unread'], ['chưa xem', 'unseen'], ['phiên này', 'this session'],
   ['tin mới', 'new messages'], ['tệp lưu', 'files saved'], ['đã chọn', 'selected'], ['kết quả', 'results'],

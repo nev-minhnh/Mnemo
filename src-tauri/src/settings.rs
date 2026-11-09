@@ -429,8 +429,11 @@ pub struct Settings {
     pub language: String,
     /// Sidebar shows only avatars.
     pub sidebar_compact: bool,
-    /// Put Mnemo's sidebar on the right, so an app's own navigation rail sits at the window's left edge.
+    /// Old switch for a right-hand sidebar; read once into `sidebar_pos`.
+    #[serde(skip_serializing)]
     pub sidebar_right: bool,
+    /// Where Mnemo's bar sits: "left", "right", "top" or "bottom".
+    pub sidebar_pos: String,
     /// Start hidden in the tray when Windows starts.
     pub start_with_windows: bool,
     /// The window's close button hides Mnemo in the tray instead of quitting.
@@ -454,6 +457,7 @@ impl Default for Settings {
             language: "vi".into(),
             sidebar_compact: false,
             sidebar_right: false,
+            sidebar_pos: "left".into(),
             start_with_windows: false,
             close_to_tray: true,
             notify: NotifySettings::default(),
@@ -486,6 +490,12 @@ impl Settings {
                 }
             },
             Err(_) => Settings::default(),
+        };
+        // Settings from before top/bottom existed only knew left/right.
+        s.sidebar_pos = match s.sidebar_pos.as_str() {
+            "left" | "right" | "top" | "bottom" => s.sidebar_pos.clone(),
+            _ if s.sidebar_right => "right".into(),
+            _ => "left".into(),
         };
         if s.archive_dir.as_os_str().is_empty() {
             s.archive_dir = documents.join("Mnemo").join("Archive");

@@ -17,7 +17,8 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 - Messenger, Instagram và LinkedIn bị khóa trong phần tin nhắn: bấm vào trang cá nhân hay bài đăng thì mở trong trình duyệt. Mọi liên kết ra ngoài cũng mở trong trình duyệt.
 
 **Thanh bên, thông báo, khay hệ thống**
-- Thanh bên Mnemo đặt được **bên trái hoặc bên phải** (Cài đặt → Giao diện). Đặt bên phải thì thanh điều hướng riêng của WhatsApp, Discord… nằm sát mép trái cửa sổ.
+- Thanh bên Mnemo đặt được **trái, phải, trên cùng hoặc dưới cùng** (Cài đặt → Giao diện). Đặt bên phải thì thanh điều hướng riêng của WhatsApp, Discord… nằm sát mép trái cửa sổ; trên/dưới thì thanh nằm ngang như các tab.
+- Trang chủ hiện số liệu thật của kho: hội thoại có ít nhất một tin, tin nhắn (không tính dòng hệ thống và tin đã thu hồi), tệp đã lưu (tệp trùng chỉ tính một lần); mỗi tài khoản có số riêng, cộng thêm số lưu được trong phiên này.
 - **Kéo thả** tài khoản trên thanh bên để đổi thứ tự. Nút **Thêm tài khoản** cuối danh sách mở bảng chọn 10 ứng dụng.
 - Mỗi tài khoản hiện **avatar của bạn trong app** (tự lấy từ trang nếu được, hoặc ảnh bạn chọn), có icon nhỏ của app ở góc dưới phải. Bên cạnh là tên app ở trên, tên tài khoản ở dưới, và số tin chưa đọc. Thanh bên thu gọn được, chỉ còn avatar.
 - **Thông báo tin mới của Mnemo** ở góc phải dưới màn hình, gồm: [Tên App], From, giờ, To, Nội dung.

@@ -171,6 +171,52 @@ label.check { display: inline-flex; align-items: center; gap: 8px; cursor: point
 #app.right .main { order: 1; }
 #app.right .acc-row.active::before { left: auto; right: -4px; }
 #app.right ~ .toast-host { left: 16px; }
+
+/* ---------- account cards: what the archive holds ---------- */
+.acc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.acc-stats > span { display: flex; flex-direction: column; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); line-height: 1.2; }
+.acc-stats b { font-size: 16px; font-weight: 650; }
+.acc-stats .faint { font-size: 11.5px; }
+
+/* ---------- bar on the top or bottom edge ---------- */
+#app.horiz { grid-template-columns: 1fr; }
+#app.horiz.panel { grid-template-columns: 1fr var(--panel); }
+#app.pos-top { grid-template-rows: var(--sidebar) minmax(0, 1fr); }
+#app.pos-bottom { grid-template-rows: minmax(0, 1fr) var(--sidebar); }
+#app.horiz .sidebar { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 10px; padding: 0 12px; border-right: 0; min-width: 0; order: 0;
+  background: linear-gradient(90deg, #0a1640 0%, #060d27 60%, #081232 100%); }
+#app.pos-top .sidebar { grid-row: 1; border-bottom: 1px solid var(--side-border); box-shadow: 0 2px 14px rgba(0, 0, 0, .25); }
+#app.pos-bottom .sidebar { grid-row: 2; border-top: 1px solid var(--side-border); box-shadow: 0 -2px 14px rgba(0, 0, 0, .25); }
+#app.pos-top .main, #app.pos-top .panel { grid-row: 2; }
+#app.pos-bottom .main, #app.pos-bottom .panel { grid-row: 1; }
+#app.horiz .main { grid-column: 1; }
+#app.horiz .panel { grid-column: 2; }
+#app.horiz .side-head { flex-direction: row; padding: 0; gap: 8px; flex: none; }
+#app.horiz .side-head .logo { width: 38px; height: 38px; }
+#app.horiz .side-head .brand { min-width: 64px; }
+#app.horiz .side-section { display: none; }
+#app.horiz .accounts { flex-direction: row; align-items: center; flex: 1; min-width: 0; height: 100%; margin: 0; padding: 0 6px;
+  overflow-x: auto; overflow-y: hidden; gap: 6px; border-left: 1px solid var(--side-border); scrollbar-width: none; }
+#app.horiz .accounts::-webkit-scrollbar { display: none; }
+#app.horiz .acc-row { width: auto; min-height: 0; height: 48px; padding: 4px 12px 4px 5px; border-radius: 26px; gap: 8px; flex: none; max-width: 220px; }
+#app.horiz .acc-text { max-width: 132px; }
+#app.horiz .acc-row .pill { margin-left: 2px; }
+#app.horiz.pos-top .acc-row.active::before { left: 18px; right: 18px; top: auto; bottom: -5px; width: auto; height: 3px; }
+#app.horiz.pos-bottom .acc-row.active::before { left: 18px; right: 18px; top: -5px; bottom: auto; width: auto; height: 3px; }
+#app.horiz .acc-row.add .acc-text { display: none; }
+#app.horiz .acc-row.add { padding: 4px; }
+#app.horiz .side-nav { flex-direction: row; align-items: center; gap: 2px; padding: 0 0 0 10px; margin: 0; border-top: 0; border-left: 1px solid var(--side-border); height: 60%; flex: none; }
+#app.horiz .side-item { width: 38px; height: 38px; padding: 0; justify-content: center; }
+#app.horiz .side-item .side-label { display: none; }
+#app.horiz .side-collapse .chev { font-size: 16px; }
+#app.horiz.compact .sidebar { padding: 0 10px; align-items: center; }
+#app.horiz.compact .side-head { flex-direction: row; padding: 0; }
+#app.horiz.compact .side-head .logo { width: 34px; height: 34px; }
+#app.horiz.compact .acc-row { width: auto; height: 46px; padding: 3px; border-radius: 50%; justify-content: center; }
+#app.horiz.compact .accounts { align-items: center; width: auto; }
+#app.horiz.compact .side-nav { width: auto; }
+#app.horiz ~ .toast-host { left: 16px; }
+#app.pos-bottom ~ .toast-host { bottom: calc(var(--sidebar) + 16px); }
 .sidebar { display: flex; flex-direction: column; gap: 2px; padding: 10px 10px 12px; background: var(--side-bg); color: var(--side-text); border-right: 1px solid var(--side-border); min-height: 0; min-width: 0; overflow: hidden; --surface: #0b1633; }
 .side-head { display: flex; align-items: center; gap: 10px; padding: 2px 4px 10px; }
 .side-head .logo { width: 36px; height: 36px; border-radius: 10px; cursor: pointer; flex: none; box-shadow: 0 0 14px rgba(56, 208, 245, .35); }

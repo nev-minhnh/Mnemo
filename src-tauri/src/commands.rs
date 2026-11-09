@@ -235,11 +235,11 @@ pub fn set_layout(
     state: State<'_, AppState>,
     sidebar: f64,
     panel: bool,
-    right: Option<bool>,
+    pos: Option<String>,
 ) {
     *lock(&state.sidebar_w) = sidebar.clamp(56.0, 400.0);
-    if let Some(r) = right {
-        *lock(&state.sidebar_right) = r;
+    if let Some(p) = pos.filter(|p| ["left", "right", "top", "bottom"].contains(&p.as_str())) {
+        *lock(&state.sidebar_pos) = p;
     }
     *lock(&state.panel_open) = panel;
     webviews::layout(&app);

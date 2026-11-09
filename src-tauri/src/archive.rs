@@ -106,7 +106,21 @@ pub struct Stats {
     pub messages: i64,
     pub media: i64,
     pub db_bytes: u64,
+    /// Per account id: what the archive holds for it.
+    pub accounts: std::collections::HashMap<String, AccountStats>,
 }
+
+#[derive(Serialize, Clone, Debug, Default)]
+pub struct AccountStats {
+    pub chats: i64,
+    pub messages: i64,
+    pub media: i64,
+    pub last_ts: i64,
+}
+
+/// What counts as a message in the totals: real messages only, not "X joined the group"
+/// lines and not messages the sender recalled.
+const COUNTED: &str = "m.deleted = 0 AND m.kind <> 'service'";
 
 pub struct NewMedia<'a> {
     pub message_id: Option<i64>,
@@ -878,11 +892,70 @@ COMMIT;
         let count = |sql: &str| -> Result<i64, String> {
             self.conn.query_row(sql, [], |r| r.get(0)).map_err(err)
         };
+        // Conversations with at least one saved message (opening an empty chat creates none),
+        // messages as above, and files kept on disk (one per file, even if sent twice).
+        let chats = count(&format!(
+            "SELECT count(DISTINCT m.chat_id) FROM messages m WHERE {COUNTED}"
+        ))?;
+        let messages = count(&format!("SELECT count(*) FROM messages m WHERE {COUNTED}"))?;
+        let media = count(
+            "SELECT count(*) FROM (SELECT 1 FROM media WHERE path <> '' \
+             GROUP BY CASE WHEN sha256 <> '' THEN sha256 ELSE 'id' || id END)",
+        )?;
+        let mut accounts: std::collections::HashMap<String, AccountStats> = Default::default();
+        {
+            let mut st = self
+                .conn
+                .prepare(&format!(
+                    "SELECT c.account, count(DISTINCT m.chat_id), count(m.id), coalesce(max(m.ts), 0)
+                     FROM messages m JOIN chats c ON c.id = m.chat_id
+                     WHERE {COUNTED} GROUP BY c.account"
+                ))
+                .map_err(err)?;
+            let rows = st
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, i64>(2)?,
+                        r.get::<_, i64>(3)?,
+                    ))
+                })
+                .map_err(err)?;
+            for row in rows {
+                let (acc, chats, messages, last_ts) = row.map_err(err)?;
+                accounts.insert(
+                    acc,
+                    AccountStats {
+                        chats,
+                        messages,
+                        media: 0,
+                        last_ts,
+                    },
+                );
+            }
+            let mut st = self
+                .conn
+                .prepare(
+                    "SELECT c.account, count(DISTINCT CASE WHEN f.sha256 <> '' THEN f.sha256 ELSE 'id' || f.id END)
+                     FROM media f JOIN chats c ON c.id = f.chat_id
+                     WHERE f.path <> '' GROUP BY c.account",
+                )
+                .map_err(err)?;
+            let rows = st
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+                .map_err(err)?;
+            for row in rows {
+                let (acc, n) = row.map_err(err)?;
+                accounts.entry(acc).or_default().media = n;
+            }
+        }
         Ok(Stats {
-            chats: count("SELECT count(*) FROM chats")?,
-            messages: count("SELECT count(*) FROM messages")?,
-            media: count("SELECT count(*) FROM media")?,
+            chats,
+            messages,
+            media,
             db_bytes: std::fs::metadata(&self.path).map(|m| m.len()).unwrap_or(0),
+            accounts,
         })
     }
 
@@ -1027,6 +1100,25 @@ mod tests {
         );
         let rows = a.messages(c, None, 10).unwrap();
         assert!(rows[0].edited);
+    }
+
+    #[test]
+    fn stats_count_real_messages_per_account() {
+        let (_d, a) = open();
+        let _empty = a.upsert_chat("zalo", "z1", "empty", None, None).unwrap();
+        let c1 = a.upsert_chat("zalo", "z1", "k1", None, None).unwrap();
+        let c2 = a.upsert_chat("whatsapp", "w1", "k2", None, None).unwrap();
+        let mut service = msg("s", "An joined");
+        service.kind = "service".into();
+        a.write_batch(c1, &[msg("1", "a"), msg("2", "b"), service], 1000, false)
+            .unwrap();
+        a.write_batch(c2, &[msg("1", "c")], 1000, false).unwrap();
+        let st = a.stats().unwrap();
+        assert_eq!(st.chats, 2, "the chat with no messages is not counted");
+        assert_eq!(st.messages, 3, "service lines are not messages");
+        assert_eq!(st.accounts["z1"].messages, 2);
+        assert_eq!(st.accounts["z1"].chats, 1);
+        assert_eq!(st.accounts["w1"].messages, 1);
     }
 
     #[test]

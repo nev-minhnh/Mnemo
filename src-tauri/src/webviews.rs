@@ -54,21 +54,24 @@ fn account_rect(
     window: &tauri::Window,
 ) -> (LogicalPosition<f64>, LogicalSize<f64>) {
     let (w, h) = inner_logical(window);
-    let panel = if *lock(&app.state::<AppState>().panel_open) {
+    let state = app.state::<AppState>();
+    let panel = if *lock(&state.panel_open) {
         PANEL_W
     } else {
         0.0
     };
-    let side = sidebar_w(app);
-    let width = (w - side - panel).max(200.0);
-    let x = if *lock(&app.state::<AppState>().sidebar_right) {
-        0.0
-    } else {
-        side
+    // The bar's thickness: its width on the left/right, its height on the top/bottom.
+    let bar = sidebar_w(app);
+    let pos = lock(&state.sidebar_pos).clone();
+    let (x, y, width, height) = match pos.as_str() {
+        "right" => (0.0, 0.0, w - bar - panel, h),
+        "top" => (0.0, bar, w - panel, h - bar),
+        "bottom" => (0.0, 0.0, w - panel, h - bar),
+        _ => (bar, 0.0, w - bar - panel, h),
     };
     (
-        LogicalPosition::new(x, 0.0),
-        LogicalSize::new(width, h.max(200.0)),
+        LogicalPosition::new(x, y),
+        LogicalSize::new(width.max(200.0), height.max(200.0)),
     )
 }
 
@@ -388,19 +391,18 @@ pub fn show_assist(
     let scale = window.scale_factor().unwrap_or(1.0);
     let origin = window.inner_position().map_err(|e| e.to_string())?;
     let (x, y, _w, h) = rect;
-    let panel_x = if lock(&app.state::<AppState>().visible).as_deref() == Some(account_id) {
-        if *lock(&app.state::<AppState>().sidebar_right) {
-            0.0
-        } else {
-            sidebar_w(app)
-        }
+    // Where the account's page starts inside the window (its rect is page-relative).
+    let (page_x, page_y) = if lock(&app.state::<AppState>().visible).as_deref() == Some(account_id)
+    {
+        let (p, _) = account_rect(app, &window);
+        (p.x, p.y)
     } else {
-        0.0
+        (0.0, 0.0)
     };
     let popup_w = 440.0 * scale;
     let popup_h = 560.0 * scale;
-    let mut px = origin.x as f64 + (panel_x + x) * scale - 24.0 * scale;
-    let mut py = origin.y as f64 + (y + h + 8.0) * scale;
+    let mut px = origin.x as f64 + (page_x + x) * scale - 24.0 * scale;
+    let mut py = origin.y as f64 + (page_y + y + h + 8.0) * scale;
     if let Ok(Some(m)) = window.current_monitor() {
         let mp = m.position();
         let ms = m.size();

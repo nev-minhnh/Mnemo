@@ -34,14 +34,27 @@ function avatarHtml(a, size) {
   </span>`;
 }
 
-function sidebarWidth() { return S && S.settings.sidebar_compact ? 76 : 248; }
+function barPos() {
+  const p = S && S.settings.sidebar_pos;
+  return ['left', 'right', 'top', 'bottom'].includes(p) ? p : 'left';
+}
+function barHorizontal() { const p = barPos(); return p === 'top' || p === 'bottom'; }
+// The bar's thickness: width on the left/right, height on the top/bottom.
+function sidebarWidth() {
+  const compact = !!(S && S.settings.sidebar_compact);
+  if (barHorizontal()) return compact ? 60 : 68;
+  return compact ? 76 : 248;
+}
 
 async function syncLayout() {
+  const pos = barPos();
+  const app = $('#app');
   document.documentElement.style.setProperty('--sidebar', sidebarWidth() + 'px');
-  $('#app').classList.toggle('compact', !!(S && S.settings.sidebar_compact));
-  const right = !!(S && S.settings.sidebar_right);
-  $('#app').classList.toggle('right', right);
-  try { await invoke('set_layout', { sidebar: sidebarWidth(), panel: panelOpen, right }); } catch (e) {}
+  app.classList.toggle('compact', !!(S && S.settings.sidebar_compact));
+  ['left', 'right', 'top', 'bottom'].forEach((p) => app.classList.toggle('pos-' + p, p === pos));
+  app.classList.toggle('right', pos === 'right');
+  app.classList.toggle('horiz', barHorizontal());
+  try { await invoke('set_layout', { sidebar: sidebarWidth(), panel: panelOpen, pos }); } catch (e) {}
 }
 
 function renderSidebar() {
@@ -68,7 +81,7 @@ function renderSidebar() {
       <button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>
     </div>
     <div class="side-nav">
-      <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${compact !== !!S.settings.sidebar_right ? '›' : '‹'}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
+      <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${barHorizontal() ? (compact ? '»' : '«') : (compact !== (barPos() === 'right') ? '›' : '‹')}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
       ${nav('home', 'home', 'Trang chủ')}
       ${`<button class="side-item ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
       ${nav('archive', 'archive', 'Kho tin nhắn')}
@@ -84,6 +97,11 @@ function renderSidebar() {
   });
   sb.querySelector('[data-panel]').addEventListener('click', () => togglePanel());
   sb.querySelector('[data-add]').addEventListener('click', () => pickApp());
+  // On a horizontal bar the mouse wheel scrolls the accounts sideways.
+  const list = sb.querySelector('.accounts');
+  if (barHorizontal()) list.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { list.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
   $('#collapse').addEventListener('click', async () => {
     S.settings.sidebar_compact = !S.settings.sidebar_compact;
     await syncLayout();
@@ -102,14 +120,16 @@ function startReorder(e, row) {
   reorder.row = row;
   reorder.id = row.dataset.acc;
   reorder.y0 = e.clientY;
+  reorder.x0 = e.clientX;
   reorder.active = false;
 }
 
 window.addEventListener('pointermove', (e) => {
   const r = reorder;
   if (!r.row) return;
+  const horiz = barHorizontal();
   if (!r.active) {
-    if (Math.abs(e.clientY - r.y0) < 6) return;
+    if (Math.abs((horiz ? e.clientX : e.clientY) - (horiz ? r.x0 : r.y0)) < 6) return;
     r.active = true;
     r.row.classList.add('dragging');
     document.body.classList.add('reordering');
@@ -119,12 +139,15 @@ window.addEventListener('pointermove', (e) => {
   let before = null;
   for (const x of rows) {
     const b = x.getBoundingClientRect();
-    if (e.clientY < b.top + b.height / 2) { before = x; break; }
+    if (horiz ? e.clientX < b.left + b.width / 2 : e.clientY < b.top + b.height / 2) { before = x; break; }
   }
   list.insertBefore(r.row, before || list.querySelector('.acc-row.add'));
   // Scroll the list when dragging near its edges.
   const lb = list.getBoundingClientRect();
-  if (e.clientY < lb.top + 24) list.scrollTop -= 8;
+  if (horiz) {
+    if (e.clientX < lb.left + 24) list.scrollLeft -= 8;
+    else if (e.clientX > lb.right - 24) list.scrollLeft += 8;
+  } else if (e.clientY < lb.top + 24) list.scrollTop -= 8;
   else if (e.clientY > lb.bottom - 24) list.scrollTop += 8;
 });
 
@@ -196,6 +219,8 @@ async function openPage(p, scrollToAdd) {
   await invoke('show_page');
   visible = null;
   page = p;
+  // Home shows archive totals: fetch them fresh rather than from when the app started.
+  if (p === 'home') { try { await refresh(); } catch (e) {} }
   renderSidebar();
   await renderMain();
   if (panelOpen) renderPanel();
@@ -238,11 +263,19 @@ function renderHome(main) {
     ${accs.length ? `<div class="section"><h2>Tài khoản</h2><div class="grid">
       ${accs.map((a) => {
         const stats = (S.stats || {})[a.id] || {};
+        const kept = (st && st.accounts && st.accounts[a.id]) || {};
         const n = (S.unread || {})[a.id] || 0;
         return `<div class="card svc-card">
           <div class="row">${avatarHtml(a, 42)}<div class="grow"><div class="small muted">${SERVICE_NAME[a.service]}</div><b class="ellipsis" data-noi18n>${esc(a.label)}</b></div>
           ${n ? `<span class="badge danger">${n} chưa đọc</span>` : ''}</div>
-          <div class="small muted">${a.capture && S.settings.capture_enabled ? `Đang lưu tin nhắn · phiên này: ${stats.messages || 0} tin, ${stats.media || 0} tệp` : 'Không lưu tin nhắn'}</div>
+          <div class="acc-stats">
+            <span><b>${kept.chats || 0}</b><span class="faint">hội thoại</span></span>
+            <span><b>${kept.messages || 0}</b><span class="faint">tin nhắn</span></span>
+            <span><b>${kept.media || 0}</b><span class="faint">tệp</span></span>
+          </div>
+          <div class="small muted">${a.capture && S.settings.capture_enabled
+            ? `Đang lưu tin nhắn${stats.messages || stats.media ? ` · phiên này +${stats.messages || 0} tin, +${stats.media || 0} tệp` : ''}${kept.last_ts ? ` · tin mới nhất ${fmtTime(kept.last_ts)}` : ''}`
+            : 'Không lưu tin nhắn'}</div>
           <div class="row"><button class="btn sm primary" data-open="${esc(a.id)}">Mở</button><button class="btn sm" data-acc-page="${esc(a.id)}">Cài đặt</button></div>
         </div>`;
       }).join('')}</div></div>` : ''}
@@ -652,9 +685,9 @@ async function renderSettings(main) {
     <div class="section"><h2>Giao diện</h2><div class="card pad"><div class="form">
       <span class="label">Ngôn ngữ</span><select data-s="language" style="width:200px" data-noi18n>
         ${[['vi', 'Tiếng Việt'], ['en', 'English']].map(([v, l]) => `<option value="${v}" ${s.language === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      <span class="label">Thanh bên Mnemo</span><select data-s="sidebar_right" style="width:200px">
-        ${[['', 'Bên trái'], ['1', 'Bên phải']].map(([v, l]) => `<option value="${v}" ${!!s.sidebar_right === !!v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-      <span class="hint">Đặt bên phải để thanh điều hướng riêng của ứng dụng (WhatsApp, Discord…) nằm sát mép trái cửa sổ, không bị kẹp giữa hai thanh.</span>
+      <span class="label">Thanh bên Mnemo</span><select data-s="sidebar_pos" style="width:200px">
+        ${[['left', 'Bên trái'], ['right', 'Bên phải'], ['top', 'Trên cùng'], ['bottom', 'Dưới cùng']].map(([v, l]) => `<option value="${v}" ${barPos() === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <span class="hint">Bên phải: thanh điều hướng riêng của ứng dụng (WhatsApp, Discord…) nằm sát mép trái cửa sổ. Trên cùng / dưới cùng: thanh nằm ngang như các tab, nhường toàn bộ chiều ngang cho ứng dụng.</span>
       <span class="label">Chủ đề</span><select data-s="theme" style="width:200px">
         ${[['system', 'Theo Windows'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<option value="${v}" ${s.theme === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
     </div></div></div>
@@ -668,10 +701,7 @@ async function renderSettings(main) {
   main.querySelectorAll('[data-s]').forEach((input) => input.addEventListener('change', () => {
     s[input.dataset.s] = input.type === 'checkbox' ? input.checked : input.value;
     if (input.dataset.s === 'theme') applyTheme(s.theme);
-    if (input.dataset.s === 'sidebar_right') {
-      s.sidebar_right = !!input.value;
-      syncLayout().then(renderSidebar);
-    }
+    if (input.dataset.s === 'sidebar_pos') syncLayout().then(renderSidebar);
     if (input.dataset.s === 'language') {
       setLang(s.language);
       renderSidebar();
@@ -1103,6 +1133,12 @@ async function start() {
     if (!panelOpen || e.payload.account !== visible || panel.tab !== 'one') return;
     clearTimeout(ctxTimer);
     ctxTimer = setTimeout(renderPanel, 600);
+  });
+  let homeTimer = null;
+  listen('captured', () => {
+    if (page !== 'home' || visible) return;
+    clearTimeout(homeTimer);
+    homeTimer = setTimeout(async () => { if (page === 'home' && !visible) { await refresh(); renderMain(); } }, 2000);
   });
   listen('captured', (e) => {
     if (!panelOpen || e.payload.account !== visible || panel.busy || panel.tab !== 'one') return;
