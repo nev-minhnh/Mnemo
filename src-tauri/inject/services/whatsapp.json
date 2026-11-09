@@ -76,5 +76,13 @@
     }
   },
   "_noteAvatar": "Your own photo is the Profile button at the bottom of the left rail (2025+ layout). Only profile photos (pps.whatsapp.net) count, so the Meta AI icon in the same rail is never taken as your avatar.",
-  "_avatarNote": "Your photo is the bottom item of WhatsApp's left rail; the Meta AI button above it also shows a pps.whatsapp.net picture, so it is excluded."
+  "_avatarNote": "Your photo is the bottom item of WhatsApp's left rail; the Meta AI button above it also shows a pps.whatsapp.net picture, so it is excluded.",
+  "unreadCount": [
+    {
+      "sel": "#pane-side span[aria-label*='unread message' i], #pane-side span[aria-label*='tin nhắn chưa đọc' i]",
+      "mode": "sum",
+      "listSel": "#pane-side"
+    }
+  ],
+  "_unreadNote": "unreadCount: the unread-message total is the sum of the chat list's badges (muted chats left out), not the page title. Only conversations the list has drawn are counted; scrolled-away ones aren't."
 }

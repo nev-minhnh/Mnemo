@@ -56,6 +56,8 @@ pub struct AppState {
     pub notices: Mutex<Vec<crate::notify::Notice>>,
     /// Per account: names of the conversations the app's chat list marks unread.
     pub senders: Mutex<HashMap<String, Vec<String>>>,
+    /// Accounts whose page reports its own unread count (instead of the title).
+    pub page_unread: Mutex<std::collections::HashSet<String>>,
     /// The apps' own icons (data URLs) by service id.
     pub icons: Mutex<HashMap<String, String>>,
     pub http: reqwest::Client,

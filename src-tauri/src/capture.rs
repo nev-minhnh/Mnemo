@@ -84,9 +84,11 @@ pub fn mnemo_context(
 /// can say how many people wrote ("3 người: An, Bình, Chi").
 #[tauri::command]
 pub fn mnemo_senders(
+    app: AppHandle,
     webview: Webview,
     state: State<'_, AppState>,
     names: Vec<String>,
+    count: Option<u32>,
 ) -> Result<(), String> {
     let s = state.settings();
     let account = account_for(&webview, &s)?;
@@ -98,6 +100,11 @@ pub fn mnemo_senders(
         }
     }
     lock(&state.senders).insert(account.id.clone(), clean);
+    // The page's own count of unread messages, when its settings say how to read it.
+    if let Some(n) = count {
+        lock(&state.page_unread).insert(account.id.clone());
+        crate::webviews::set_unread(&app, &account.id, n.min(99_999));
+    }
     Ok(())
 }
 

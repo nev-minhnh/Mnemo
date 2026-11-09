@@ -240,7 +240,40 @@ const SIGN_IN_HOSTS: &[&str] = &[
     "login.live.com",
     "account.live.com",
     "login.yahoo.com",
+    // Meta's shared sign-in (Facebook, Instagram, Threads, Messenger).
+    "auth.meta.com",
+    "accountscenter.meta.com",
+    "www.meta.com",
 ];
+
+/// Paths of a sign-in, verification or consent step. On the service's own site or its
+/// partner's (Threads → Instagram, Instagram → Facebook) these always stay in the app.
+const SIGN_IN_PATHS: &[&str] = &[
+    "/login",
+    "/accounts",
+    "/oauth",
+    "/dialog/oauth",
+    "/challenge",
+    "/checkpoint",
+    "/two_factor",
+    "/two_step_verification",
+    "/auth_platform",
+    "/consent",
+    "/privacy/consent",
+    "/recover",
+    "/reset_password",
+    "/confirm",
+    "/cookie",
+    "/signin",
+    "/signup",
+    "/ajax/login",
+];
+
+fn sign_in_path(path: &str) -> bool {
+    SIGN_IN_PATHS.iter().any(|p| {
+        path == *p || path.starts_with(&format!("{p}/")) || path.starts_with(&format!("{p}."))
+    }) || path.starts_with("/v") && path.contains("/dialog/oauth")
+}
 
 /// A page of an identity provider's sign-in flow.
 pub fn is_sign_in(url: &Url) -> bool {
@@ -251,7 +284,10 @@ pub fn is_sign_in(url: &Url) -> bool {
         return false;
     };
     let host = host.to_ascii_lowercase();
-    if host_matches(&host, SIGN_IN_HOSTS) || host.starts_with("accounts.google.") {
+    if host_matches(&host, SIGN_IN_HOSTS)
+        || host.starts_with("accounts.google.")
+        || host.starts_with("accountscenter.")
+    {
         return true;
     }
     // Google's sign-in also passes through www.google.<country>/accounts, /signin, /sorry.
@@ -283,7 +319,12 @@ pub fn navigation_signin(
     now_ms: u64,
 ) -> Nav {
     use std::sync::atomic::Ordering;
-    if is_sign_in(url) {
+    let own_or_partner = |u: &Url| {
+        u.scheme() == "https"
+            && u.host_str()
+                .is_some_and(|h| host_matches(h, def.hosts) || host_matches(h, def.partner_hosts))
+    };
+    if is_sign_in(url) || (own_or_partner(url) && sign_in_path(url.path())) {
         sign_in_until.store(now_ms + SIGN_IN_GRACE_MS, Ordering::Relaxed);
         return Nav::Allow;
     }
@@ -445,6 +486,70 @@ mod tests {
         assert_eq!(
             navigation_signin(ig, &u("https://www.facebook.com/checkpoint/x"), &until, now),
             Nav::Allow
+        );
+    }
+
+    #[test]
+    fn meta_logins_stay_inside() {
+        use std::sync::atomic::AtomicU64;
+        let now = 1_000_000;
+        let th = def(ServiceId::Threads);
+        let until = AtomicU64::new(0);
+        assert_eq!(
+            navigation_signin(
+                th,
+                &u("https://www.instagram.com/oauth/authorize?client_id=1"),
+                &until,
+                now
+            ),
+            Nav::Allow
+        );
+        assert_eq!(
+            navigation_signin(
+                th,
+                &u("https://www.instagram.com/accounts/login/?next=x"),
+                &until,
+                now
+            ),
+            Nav::Allow
+        );
+        let ig = def(ServiceId::Instagram);
+        let until = AtomicU64::new(0);
+        assert_eq!(
+            navigation_signin(
+                ig,
+                &u("https://www.facebook.com/login.php?skip_api_login=1"),
+                &until,
+                now
+            ),
+            Nav::Allow
+        );
+        assert_eq!(
+            navigation_signin(
+                ig,
+                &u("https://www.facebook.com/v19.0/dialog/oauth?x=1"),
+                &until,
+                now
+            ),
+            Nav::Allow
+        );
+        assert_eq!(
+            navigation_signin(ig, &u("https://accountscenter.instagram.com/"), &until, now),
+            Nav::Allow
+        );
+        assert_eq!(
+            navigation_signin(ig, &u("https://auth.meta.com/x"), &until, now),
+            Nav::Allow
+        );
+        // An ordinary Facebook page from Instagram, outside a sign-in, still opens outside.
+        let until = AtomicU64::new(0);
+        assert_eq!(
+            navigation_signin(ig, &u("https://www.facebook.com/somebody"), &until, now),
+            Nav::OpenExternally
+        );
+        assert_eq!(
+            navigation_signin(ig, &u("https://www.instagram.com/someone/"), &until, now),
+            Nav::OpenExternally
         );
     }
 

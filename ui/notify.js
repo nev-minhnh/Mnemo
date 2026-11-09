@@ -32,10 +32,9 @@ function render(list) {
   const shown = list.slice(0, 4).reverse();
   box.innerHTML = shown.map((n) => `<div class="note" data-id="${esc(n.id)}" title="Bấm để mở hội thoại">
     ${avatar(n)}
-    <div class="app">[${esc(n.app)}]</div>
-    <div class="line"><b>From:</b><span data-noi18n>${esc(n.from)}</span><span class="time">${timeText(n.ts)}</span></div>
-    <div class="line"><b>To:</b><span data-noi18n>${esc(n.to)}</span></div>
-    <div class="body"><b>Nội dung:</b> <span data-noi18n>${esc(n.text)}</span></div>
+    <div class="head"><span class="app" data-noi18n>${esc(n.app)}${n.to ? ` - ${esc(n.to)}` : ''}</span><span class="time">${timeText(n.ts)}</span></div>
+    <div class="from" data-noi18n>${esc(n.from)}</div>
+    <div class="body" data-noi18n>${esc(n.text)}</div>
     <button class="x" data-x="${esc(n.id)}" title="Đóng">${ICON.close}</button>
   </div>`).join('');
   box.querySelectorAll('.note').forEach((el) => el.addEventListener('click', () => invoke('notice_open', { id: el.dataset.id }).catch(() => {})));

@@ -109,6 +109,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         avatars: Mutex::new(load_avatars(&config_dir_for_avatars)),
         notices: Mutex::new(vec![]),
         senders: Mutex::new(HashMap::new()),
+        page_unread: Mutex::new(Default::default()),
         icons: Mutex::new(icons::load_cached(&config_dir_for_avatars)),
         http,
     };

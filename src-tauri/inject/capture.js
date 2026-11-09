@@ -244,6 +244,28 @@
 
   // Names of the conversations the chat list marks unread (for "From: 3 người" notices).
   let lastSenders = '';
+  // "17.6K" → 17600, "1,234" → 1234, "99+" → 99.
+  function parseCount(t) {
+    const m = /([\d.,]+)\s*([KkMm])?/.exec(t || '');
+    if (!m) return 0;
+    let n = parseFloat(m[1].replace(/,(?=\d{3}\b)/g, '').replace(',', '.'));
+    if (!isFinite(n)) return 0;
+    if (m[2]) n *= /k/i.test(m[2]) ? 1000 : 1000000;
+    return Math.round(n);
+  }
+  // The unread-message count, read from the chat list's badges (cfg.unreadCount).
+  function unreadCount() {
+    const specs = cfg.unreadCount ? [].concat(cfg.unreadCount) : [];
+    for (const s of specs) {
+      let nodes = qa(document, s.sel);
+      if (s.not) nodes = nodes.filter((n) => !n.closest(s.not) && !n.matches(s.not));
+      if (s.mode === 'first') { if (nodes.length) return parseCount(nodes[0].textContent); continue; }
+      // Sum: an empty list is a real zero once the chat list itself is on the page.
+      if (!nodes.length && !(s.listSel && q(document, s.listSel))) continue;
+      return nodes.reduce((sum, n) => sum + (parseCount(n.textContent) || (s.zeroIsOne ? 1 : 0)), 0);
+    }
+    return null;
+  }
   function unreadSenders() {
     const u = cfg.unreadChats;
     if (!u || !u.row) return;
@@ -255,10 +277,11 @@
       if (n && names.indexOf(n) === -1) names.push(n);
       if (names.length >= 200) break;
     }
-    const sig = names.join('\u0001');
+    const count = unreadCount();
+    const sig = names.join('\u0001') + '|' + count;
     if (sig === lastSenders) return;
     lastSenders = sig;
-    invoke('mnemo_senders', { names }).catch(() => {});
+    invoke('mnemo_senders', { names, count }).catch(() => {});
   }
   setInterval(unreadSenders, 2000);
 

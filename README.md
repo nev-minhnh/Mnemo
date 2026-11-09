@@ -21,11 +21,13 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 - Trang chủ hiện số liệu thật của kho: hội thoại có ít nhất một tin, tin nhắn (không tính dòng hệ thống và tin đã thu hồi), tệp đã lưu (tệp trùng chỉ tính một lần); mỗi tài khoản có số riêng, cộng thêm số lưu được trong phiên này.
 - **Kéo thả** tài khoản trên thanh bên để đổi thứ tự. Nút **Thêm tài khoản** cuối danh sách mở bảng chọn 10 ứng dụng.
 - Mỗi tài khoản hiện **avatar của bạn trong app** (tự lấy từ trang nếu được, hoặc ảnh bạn chọn), có icon nhỏ của app ở góc dưới phải. Bên cạnh là tên app ở trên, tên tài khoản ở dưới, và số tin chưa đọc. Thanh bên thu gọn được, chỉ còn avatar.
-- **Thông báo tin mới của Mnemo** ở góc phải dưới màn hình, gồm: [Tên App], From, giờ, To, Nội dung.
+- **Thông báo tin mới của Mnemo** ở góc phải dưới màn hình, gồm: dòng đầu "Tên app - tên tài khoản" (màu vàng) và giờ, dòng hai tên người gửi in đậm, dòng ba nội dung.
   - Khi app không gửi thông báo riêng mà chỉ tăng số chưa đọc, Mnemo hiện thông báo chung; nếu nhiều người cùng nhắn, dòng From ghi số người và tên (vd "3 người: An, Bình, Chi"), lấy từ các hội thoại đang có dấu chưa đọc trong danh sách chat.
   - Mnemo nhận chính các thông báo mà app định hiện, nên có cả tin ở hội thoại chưa mở. Thông báo gốc của trang bị tắt để không trùng.
   - **Bấm vào thông báo** thì mở Mnemo đúng tài khoản và chạy lại hành động bấm thông báo của chính app, để tới đúng hội thoại và tin nhắn.
   - Bật/tắt riêng từng tài khoản. Có tùy chọn ẩn nội dung và chỉnh thời gian hiển thị.
+- Số chưa đọc của Telegram và WhatsApp là **tổng số tin chưa đọc** đọc từ huy hiệu trong danh sách chat (bỏ qua hội thoại đã tắt tiếng), chỉ tính các hội thoại danh sách đang hiển thị. Các app khác lấy số từ tiêu đề trang.
+- Đăng nhập, xác minh và cấp quyền của Meta (Instagram, Threads, Messenger, "Tiếp tục bằng Instagram/Facebook") đều mở ngay trong Mnemo.
 - **Số tin chưa đọc tổng** trên biểu tượng taskbar (có thể tắt), trên tiêu đề cửa sổ và trên tooltip ở khay.
 - Chuyển qua lại giữa các tài khoản **không tải lại trang**: tài khoản không hiển thị vẫn chạy (được "đỗ" ngoài khung cửa sổ thay vì bị ẩn), nên WhatsApp và các app khác giữ nguyên phiên và kết nối.
 - **Khởi động cùng Windows**: Mnemo chạy ẩn ở khay hệ thống, vẫn lưu tin và vẫn hiện thông báo. **Bấm × thì thu về khay**; thoát hẳn từ menu khay hoặc nút "Thoát Mnemo ngay" trong Cài đặt. Hai tùy chọn này có cả trong **Cài đặt → Khởi động & khay hệ thống** lẫn menu chuột phải ở biểu tượng khay.

@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Manager, State, Webview, WebviewUrl};
 
 pub const NOTIFY: &str = "notify";
-const CARD_H: f64 = 132.0;
+const CARD_H: f64 = 106.0;
 const WIDTH: f64 = 392.0;
 const MAX_SHOWN: usize = 4;
 

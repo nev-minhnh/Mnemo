@@ -247,8 +247,8 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 .acc-name { font-size: 13.5px; color: var(--side-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .acc-row.active .acc-app { color: #f0c463; }
 .acc-row.active .acc-name { color: #fff; }
-.pill { flex: none; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 10px; background: var(--danger); color: #fff; font-size: 11.5px; font-weight: 700; line-height: 20px; text-align: center; }
-.acc-avatar .count { position: absolute; right: -6px; top: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center; border: 2px solid #08112e; }
+.pill { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 10px; background: var(--danger); color: #fff; font-size: 11.5px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.acc-avatar .count { position: absolute; right: -7px; top: -6px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; border: 2px solid #08112e; }
 .add-circle { width: 38px; height: 38px; border-radius: 50%; border: 1.5px dashed var(--side-border); display: flex; align-items: center; justify-content: center; color: var(--side-text-2); }
 .acc-row.add .acc-name { color: var(--side-text-2); }
 .acc-row.add:hover .add-circle { border-color: #f0c463; color: #f0c463; }

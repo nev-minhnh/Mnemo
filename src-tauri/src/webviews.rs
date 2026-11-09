@@ -124,7 +124,16 @@ pub fn sidebar_w(app: &AppHandle) -> f64 {
 }
 
 fn on_title(app: &AppHandle, account_id: &str, title: &str) {
-    let count = unread_from_title(title);
+    // Pages that count their own unread messages (Telegram, WhatsApp) are not read from
+    // the title: Telegram puts no count there and WhatsApp counts chats, not messages.
+    if lock(&app.state::<AppState>().page_unread).contains(account_id) {
+        return;
+    }
+    set_unread(app, account_id, unread_from_title(title));
+}
+
+/// Records an account's unread count and tells everything that shows it.
+pub fn set_unread(app: &AppHandle, account_id: &str, count: u32) {
     let state = app.state::<AppState>();
     let before = lock(&state.unread).insert(account_id.to_string(), count);
     let changed = before != Some(count);
