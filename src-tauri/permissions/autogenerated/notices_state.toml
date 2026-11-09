@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-notices-state"
+description = "Enables the notices_state command without any pre-configured scope."
+commands.allow = ["notices_state"]
+
+[[permission]]
+identifier = "deny-notices-state"
+description = "Denies the notices_state command without any pre-configured scope."
+commands.deny = ["notices_state"]

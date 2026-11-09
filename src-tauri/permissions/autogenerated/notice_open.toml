@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-notice-open"
+description = "Enables the notice_open command without any pre-configured scope."
+commands.allow = ["notice_open"]
+
+[[permission]]
+identifier = "deny-notice-open"
+description = "Denies the notice_open command without any pre-configured scope."
+commands.deny = ["notice_open"]

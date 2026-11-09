@@ -1,23 +1,70 @@
 {
   "_note": "Zalo Web (chat.zalo.me). The conversation id isn't in the URL, so the open chat is identified by its title. Selectors may need tuning: override them in services\\zalo.json.",
   "chat": {
-    "key": { "from": "dom", "sel": "#header .header-title, .chat-header .header-title, header .title" },
+    "key": {
+      "from": "dom",
+      "sel": "#header .header-title, .chat-header .header-title, header .title"
+    },
     "title": [
-      { "sel": "#header .header-title" },
-      { "sel": ".chat-header .header-title" },
-      { "sel": "header .title" }
+      {
+        "sel": "#header .header-title"
+      },
+      {
+        "sel": ".chat-header .header-title"
+      },
+      {
+        "sel": "header .title"
+      }
     ]
   },
   "message": {
     "sel": "[id^='bb_msg_id_'], .chat-item[data-id]",
-    "key": [{ "attr": "id", "re": "bb_msg_id_(\\d+)" }, { "attr": "data-id" }],
-    "text": { "sel": ".text, .card-text, span[data-component='message-text-content']" },
-    "sender": { "sel": ".message-sender-name, .card-sender-name" },
+    "key": [
+      {
+        "attr": "id",
+        "re": "bb_msg_id_(\\d+)"
+      },
+      {
+        "attr": "data-id"
+      }
+    ],
+    "text": {
+      "sel": ".text, .card-text, span[data-component='message-text-content']"
+    },
+    "sender": {
+      "sel": ".message-sender-name, .card-sender-name"
+    },
     "inheritSender": true,
-    "time": { "sel": ".card-send-time__sendTime, .send-time" },
-    "outgoing": { "closest": ".me, .chat-item.me" },
-    "recalled": ["Tin nhắn đã được thu hồi", "Message has been recalled"]
+    "time": {
+      "sel": ".card-send-time__sendTime, .send-time"
+    },
+    "outgoing": {
+      "closest": ".me, .chat-item.me"
+    },
+    "recalled": [
+      "Tin nhắn đã được thu hồi",
+      "Message has been recalled"
+    ]
   },
-  "media": { "sel": "img[src*='zadn.vn'], img[src*='zdn.vn'], img[src^='blob:'], video[src^='blob:']", "minSize": 80 },
-  "compose": { "sel": "#richInput, #input_line_0, div[contenteditable='true']" }
+  "media": {
+    "sel": "img[src*='zadn.vn'], img[src*='zdn.vn'], img[src^='blob:'], video[src^='blob:']",
+    "minSize": 80
+  },
+  "compose": {
+    "sel": "#richInput, #input_line_0, div[contenteditable='true']"
+  },
+  "selfAvatar": [
+    {
+      "sel": "#main-tab img"
+    },
+    {
+      "sel": ".nav__tabs img"
+    },
+    {
+      "sel": "[data-id='div_Main_TabAvatar'] img"
+    }
+  ],
+  "chatList": {
+    "sel": ".conv-item .conv-item-title__name, .conv-item .truncate, [data-id^='div_TabMsg_ThrdChItem']"
+  }
 }

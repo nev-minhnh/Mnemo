@@ -20,29 +20,57 @@ function accountById(id) { return accounts().find((a) => a.id === id); }
 
 // ---------------------------------------------------------------- sidebar
 
+function avatarHtml(a, size) {
+  const src = S && S.avatars && S.avatars[a.id];
+  const name = (a.label || SERVICE_NAME[a.service] || '?').trim();
+  let hue = 0;
+  for (const ch of name) hue = (hue * 31 + ch.codePointAt(0)) % 360;
+  const mini = Math.max(14, Math.round(size * 0.42));
+  return `<span class="avatar" style="width:${size}px;height:${size}px">
+    ${src ? `<img src="${src}" alt="">` : `<span class="initial" style="background:hsl(${hue} 55% 52%);font-size:${Math.round(size * 0.42)}px">${esc(Array.from(name)[0].toUpperCase())}</span>`}
+    <span class="mini svc ${a.service}" style="width:${mini}px;height:${mini}px;font-size:${Math.round(mini * 0.46)}px">${SERVICE_SHORT[a.service]}</span>
+  </span>`;
+}
+
+function sidebarWidth() { return S && S.settings.sidebar_compact ? 76 : 248; }
+
+async function syncLayout() {
+  document.documentElement.style.setProperty('--sidebar', sidebarWidth() + 'px');
+  $('#app').classList.toggle('compact', !!(S && S.settings.sidebar_compact));
+  try { await invoke('set_layout', { sidebar: sidebarWidth(), panel: panelOpen }); } catch (e) {}
+}
+
 function renderSidebar() {
   const sb = $('#sidebar');
-  const navBtn = (id, icon, title) =>
-    `<button class="side-btn ${!visible && page === id ? 'active' : ''}" data-page="${id}" title="${title}">${ICON[icon]}</button>`;
+  const compact = !!S.settings.sidebar_compact;
+  const nav = (id, icon, label, extra) =>
+    `<button class="side-item ${extra || ''} ${!visible && page === id ? 'active' : ''}" data-page="${id}" title="${label}">${ICON[icon]}<span class="side-label">${label}</span></button>`;
+  const total = accounts().reduce((n, a) => n + ((S.unread || {})[a.id] || 0), 0);
   sb.innerHTML = `
-    <img class="logo" src="logo.png" alt="Mnemo" title="Mnemo – Every chat in sight, locked safe and tight." data-page="home">
-    <div class="accounts">
+    <div class="side-head">
+      <img class="logo" src="logo.png" alt="Mnemo" data-page="home" title="Mnemo – Every chat in sight, locked safe and tight.">
+      <div class="side-label brand grow" data-page="home"><b>Mnemo</b>${total ? `<span class="faint small">${total} chưa đọc</span>` : ''}</div>
+      <button class="side-toggle" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}">${compact ? '›' : '‹'}</button>
+    </div>
+    <div class="side-section side-label">Tài khoản</div>
+    <div class="accounts scroll">
       ${accounts().map((a) => {
         const n = (S.unread || {})[a.id] || 0;
-        return `<button class="acc-btn ${visible === a.id ? 'active' : ''} ${accounts().filter((x) => x.service === a.service).length > 1 ? 'tagged' : ''}" data-acc="${esc(a.id)}" title="${esc(a.label)} – chuột phải để cài đặt">
-          <span class="svc ${a.service}">${SERVICE_SHORT[a.service]}</span>
-          ${n ? `<span class="count">${n > 99 ? '99+' : n}</span>` : ''}
-          ${accounts().filter((x) => x.service === a.service).length > 1 ? `<span class="tag">${esc(a.label)}</span>` : ''}
+        return `<button class="acc-row ${visible === a.id ? 'active' : ''}" data-acc="${esc(a.id)}" title="${esc(SERVICE_NAME[a.service])} · ${esc(a.label)}${n ? ` · ${n} chưa đọc` : ''} (chuột phải: cài đặt)">
+          <span class="acc-avatar">${avatarHtml(a, 38)}${n && compact ? `<span class="count">${n > 99 ? '99+' : n}</span>` : ''}</span>
+          <span class="acc-text side-label"><span class="acc-app">${esc(SERVICE_NAME[a.service])}</span><span class="acc-name">${esc(a.label)}</span></span>
+          ${n && !compact ? `<span class="pill">${n > 999 ? '999+' : n}</span>` : ''}
         </button>`;
       }).join('')}
-      <button class="side-btn" data-add title="Thêm tài khoản">${ICON.plus}</button>
+      <button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>
     </div>
-    <div class="side-sep"></div>
-    <button class="side-btn ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI cho hội thoại">${ICON.sparkle}</button>
-    ${navBtn('archive', 'archive', 'Kho tin nhắn')}
-    ${navBtn('media', 'media', 'Tệp đã lưu')}
-    ${navBtn('import', 'import', 'Nhập từ tệp xuất')}
-    ${navBtn('settings', 'settings', 'Cài đặt')}`;
+    <div class="side-nav">
+      ${`<button class="side-item ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
+      ${nav('archive', 'archive', 'Kho tin nhắn')}
+      ${nav('media', 'media', 'Tệp đã lưu')}
+      ${nav('import', 'import', 'Nhập tệp xuất')}
+      ${nav('settings', 'settings', 'Cài đặt')}
+    </div>`;
   sb.querySelectorAll('[data-page]').forEach((b) => b.addEventListener('click', () => openPage(b.dataset.page)));
   sb.querySelectorAll('[data-acc]').forEach((b) => {
     b.addEventListener('click', () => showAccount(b.dataset.acc));
@@ -50,6 +78,12 @@ function renderSidebar() {
   });
   sb.querySelector('[data-add]').addEventListener('click', () => openPage('home', true));
   sb.querySelector('[data-panel]').addEventListener('click', () => togglePanel());
+  $('#collapse').addEventListener('click', async () => {
+    S.settings.sidebar_compact = !S.settings.sidebar_compact;
+    await syncLayout();
+    renderSidebar();
+    saveSettingsSoon();
+  });
 }
 
 async function showAccount(id) {
@@ -109,7 +143,7 @@ function renderHome(main) {
         const stats = (S.stats || {})[a.id] || {};
         const n = (S.unread || {})[a.id] || 0;
         return `<div class="card svc-card">
-          <div class="row">${svcIcon(a.service, 40)}<div class="grow"><b class="ellipsis">${esc(a.label)}</b><div class="small muted">${SERVICE_NAME[a.service]}</div></div>
+          <div class="row">${avatarHtml(a, 42)}<div class="grow"><div class="small muted">${SERVICE_NAME[a.service]}</div><b class="ellipsis">${esc(a.label)}</b></div>
           ${n ? `<span class="badge danger">${n} chưa đọc</span>` : ''}</div>
           <div class="small muted">${a.capture && S.settings.capture_enabled ? `Đang lưu tin nhắn · phiên này: ${stats.messages || 0} tin, ${stats.media || 0} tệp` : 'Không lưu tin nhắn'}</div>
           <div class="row"><button class="btn sm primary" data-open="${esc(a.id)}">Mở</button><button class="btn sm" data-acc-page="${esc(a.id)}">Cài đặt</button></div>
@@ -494,6 +528,24 @@ async function renderSettings(main) {
         <div class="row" style="margin-top:10px"><button class="btn sm" id="sk-add">${ICON.plus} Thêm skill</button><button class="btn sm" id="sk-import">${ICON.file} Nhập từ tệp .md</button></div></div>
     </div>
 
+    <div class="section"><h2>Thông báo</h2><div class="card pad"><div class="form">
+      <span class="label">Thông báo tin nhắn mới</span><label class="check"><span class="switch"><input type="checkbox" data-n="enabled" ${s.notify.enabled ? 'checked' : ''}><span></span></span>Bật</label>
+      <span class="hint">Hiện ở góc phải dưới màn hình: ứng dụng, người gửi, người nhận, thời gian, nội dung. Bấm vào để mở đúng hội thoại.</span>
+      <span class="label">Hiện nội dung tin nhắn</span><label class="check"><span class="switch"><input type="checkbox" data-n="show_content" ${s.notify.show_content ? 'checked' : ''}><span></span></span>Bật</label>
+      <span class="label">Thời gian hiển thị (giây)</span><input type="number" min="3" max="120" data-n="duration_secs" value="${s.notify.duration_secs}" style="width:120px">
+      <span class="label">Thông báo theo tài khoản</span><div class="col">${accounts().map((a) => `<label class="check"><span class="switch"><input type="checkbox" data-acc-notify="${esc(a.id)}" ${a.notify ? 'checked' : ''}><span></span></span>${esc(SERVICE_NAME[a.service])} · ${esc(a.label)}</label>`).join('') || '<span class="muted small">Chưa có tài khoản</span>'}</div>
+      <span class="hint">Chỉ tắt thông báo của Mnemo; tin nhắn vẫn được lưu và vẫn đếm chưa đọc.</span>
+      <span class="label">Số tin chưa đọc trên taskbar</span><label class="check"><span class="switch"><input type="checkbox" data-n="taskbar_badge" ${s.notify.taskbar_badge ? 'checked' : ''}><span></span></span>Hiện tổng số của mọi tài khoản trên biểu tượng Mnemo</label>
+    </div></div></div>
+
+    <div class="section"><h2>Khởi động &amp; khay hệ thống</h2><div class="card pad"><div class="form">
+      <span class="label">Khởi động cùng Windows</span><label class="check"><span class="switch"><input type="checkbox" id="autostart" ${s.start_with_windows ? 'checked' : ''}><span></span></span>Bật</label>
+      <span class="hint">Mnemo chạy ẩn ở khay hệ thống (góc taskbar), không mở cửa sổ; tin nhắn vẫn được lưu và thông báo vẫn hiện.</span>
+      <span class="label">Bấm × thì thu về khay</span><label class="check"><span class="switch"><input type="checkbox" data-s="close_to_tray" ${s.close_to_tray ? 'checked' : ''}><span></span></span>Bật</label>
+      <span class="hint">Nút × chỉ ẩn cửa sổ. Thoát hẳn bằng chuột phải vào biểu tượng Mnemo ở khay → Thoát Mnemo.</span>
+      <span class="label"></span><div><button class="btn danger" id="quit">${ICON.close} Thoát Mnemo ngay</button></div>
+    </div></div></div>
+
     <div class="section"><h2>Giao diện</h2><div class="card pad"><div class="form">
       <span class="label">Chủ đề</span><select data-s="theme" style="width:200px">
         ${[['system', 'Theo Windows'], ['light', 'Sáng'], ['dark', 'Tối']].map(([v, l]) => `<option value="${v}" ${s.theme === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
@@ -508,6 +560,21 @@ async function renderSettings(main) {
   main.querySelectorAll('[data-s]').forEach((input) => input.addEventListener('change', () => {
     s[input.dataset.s] = input.type === 'checkbox' ? input.checked : input.value;
     if (input.dataset.s === 'theme') applyTheme(s.theme);
+    saveSettingsSoon();
+  }));
+  main.querySelectorAll('[data-acc-notify]').forEach((input) => input.addEventListener('change', async () => {
+    const a = accountById(input.dataset.accNotify);
+    if (!a) return;
+    a.notify = input.checked;
+    try { await invoke('update_account', { account: a }); } catch (e) { toast(errText(e), true); }
+  }));
+  $('#autostart').addEventListener('change', async (e) => {
+    try { await invoke('set_autostart', { enabled: e.target.checked }); s.start_with_windows = e.target.checked; } catch (err) { e.target.checked = !e.target.checked; toast(errText(err), true); }
+  });
+  $('#quit').addEventListener('click', () => invoke('quit_app'));
+  main.querySelectorAll('[data-n]').forEach((input) => input.addEventListener('change', () => {
+    const k = input.dataset.n;
+    s.notify[k] = input.type === 'checkbox' ? input.checked : Math.min(120, Math.max(3, parseInt(input.value, 10) || 8));
     saveSettingsSoon();
   }));
   main.querySelectorAll('[data-ai]').forEach((input) => input.addEventListener('change', () => {
@@ -665,12 +732,15 @@ function renderAccount(main, id) {
   if (!a) { openPage('home'); return; }
   const stats = (S.stats || {})[a.id] || {};
   main.innerHTML = `<div class="page">
-    <div class="page-head">${svcIcon(a.service, 44)}<div class="grow"><h1>${esc(a.label)}</h1><p class="muted">${SERVICE_NAME[a.service]}</p></div>
+    <div class="page-head">${avatarHtml(a, 56)}<div class="grow"><p class="muted" style="margin:0">${SERVICE_NAME[a.service]}</p><h1>${esc(a.label)}</h1></div>
       <button class="btn primary" id="acc-open">Mở</button></div>
     <div class="section"><div class="card pad"><div class="form">
       <span class="label">Tên hiển thị</span><input type="text" data-a="label" value="${esc(a.label)}" maxlength="60">
+      <span class="label">Ảnh đại diện</span><div class="row"><button class="btn sm" id="pick-avatar">Chọn ảnh…</button><button class="btn sm ghost" id="auto-avatar">Dùng ảnh tự động</button></div>
+      <span class="hint">Mnemo tự lấy ảnh đại diện của bạn từ ${SERVICE_NAME[a.service]} khi trang cho phép; nếu không, hãy chọn ảnh.</span>
       <span class="label">Tên của bạn trong ${SERVICE_NAME[a.service]}</span><input type="text" data-a="self_name" value="${esc(a.self_name)}" placeholder="vd: Minh Nguyễn">
       <span class="hint">Dùng để nhận ra tin của bạn khi nhập tệp xuất và khi AI gợi ý câu trả lời.</span>
+      <span class="label">Thông báo của Mnemo</span><label class="check"><span class="switch"><input type="checkbox" data-a="notify" ${a.notify ? 'checked' : ''}><span></span></span>Hiện thông báo tin mới của tài khoản này</label>
       <span class="label">Lưu tin nhắn của tài khoản này</span><label class="check"><span class="switch"><input type="checkbox" data-a="capture" ${a.capture ? 'checked' : ''}><span></span></span>Bật</label>
       <span class="label">Phiên này</span><span class="muted">${stats.messages || 0} tin, ${stats.media || 0} tệp đã lưu${stats.last_error ? ` · lỗi gần nhất: ${esc(stats.last_error)}` : ''}</span>
       <span class="label">Quy tắc lưu tệp riêng</span><label class="check"><span class="switch"><input type="checkbox" id="own-rules" ${a.rules ? 'checked' : ''}><span></span></span>Dùng quy tắc riêng cho tài khoản này</label>
@@ -703,6 +773,14 @@ function renderAccount(main, id) {
   });
   drawRules();
   $('#acc-open').addEventListener('click', () => showAccount(a.id));
+  $('#pick-avatar').addEventListener('click', async () => {
+    const path = await invoke('pick_file', { title: 'Chọn ảnh đại diện', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] });
+    if (!path) return;
+    try { await invoke('set_account_avatar', { id: a.id, path }); await refresh(); renderAccount(main, id); } catch (e) { toast(errText(e), true); }
+  });
+  $('#auto-avatar').addEventListener('click', async () => {
+    try { await invoke('set_account_avatar', { id: a.id, path: null }); await refresh(); renderAccount(main, id); toast('Sẽ lấy lại ảnh từ trang khi có'); } catch (e) { toast(errText(e), true); }
+  });
   $('#acc-reload').addEventListener('click', () => invoke('reload_account', { id: a.id }).then(() => toast('Đã tải lại')).catch((e) => toast(errText(e), true)));
   $('#acc-sleep').addEventListener('click', () => invoke('sleep_account', { id: a.id }).then(() => toast('Đã cho ngủ')));
   $('#acc-devtools').addEventListener('click', async () => { try { await invoke('show_account', { id: a.id }); visible = a.id; renderSidebar(); await invoke('open_devtools', { id: a.id }); } catch (e) { toast(errText(e), true); } });
@@ -722,7 +800,7 @@ async function togglePanel(force) {
   panelOpen = force === undefined ? !panelOpen : force;
   $('#app').classList.toggle('panel', panelOpen);
   $('#panel').classList.toggle('hidden', !panelOpen);
-  await invoke('set_panel', { open: panelOpen });
+  await syncLayout();
   renderSidebar();
   if (panelOpen) renderPanel();
 }
@@ -885,6 +963,7 @@ async function start() {
     return;
   }
   panelOpen = !!S.panelOpen;
+  await syncLayout();
   $('#app').classList.toggle('panel', panelOpen);
   $('#panel').classList.toggle('hidden', !panelOpen);
   if (!accounts().length) page = 'home';
@@ -919,6 +998,11 @@ async function start() {
     if (n) n.textContent = `${e.payload.chats} hội thoại · ${e.payload.messages} tin · ${e.payload.media} tệp — ${e.payload.current}`;
   });
   listen('download', (e) => toast(`Đã tải về: ${e.payload.name}`));
+  listen('avatar', (e) => {
+    if (!S) return;
+    if (e.payload.avatar) S.avatars[e.payload.account] = e.payload.avatar; else delete S.avatars[e.payload.account];
+    renderSidebar();
+  });
 }
 
 start();

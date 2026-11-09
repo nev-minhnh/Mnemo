@@ -46,6 +46,12 @@ pub struct AppState {
     pub visible: Mutex<Option<String>>,
     pub panel_open: Mutex<bool>,
     pub assist: Mutex<AssistState>,
+    /// Width of the shell's sidebar (logical px); accounts are laid out to its right.
+    pub sidebar_w: Mutex<f64>,
+    /// Account avatars as data URLs (detected from the app's page or chosen by the person).
+    pub avatars: Mutex<HashMap<String, String>>,
+    /// Notifications on screen, newest first.
+    pub notices: Mutex<Vec<crate::notify::Notice>>,
     pub http: reqwest::Client,
 }
 

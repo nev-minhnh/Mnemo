@@ -71,6 +71,172 @@
     return '';
   }
 
+  // ---------- notifications: hand them to Mnemo instead of showing them ----------
+  // The page believes notifications are allowed; every one it creates goes to Mnemo,
+  // which shows it in its own corner window. A click there replays the page's own click,
+  // so the app opens the right conversation and message.
+  const pageNotices = new Map();
+  let noticeSeq = 0;
+  function safeData(d) {
+    try {
+      const s = JSON.stringify(d);
+      return s && s.length < 1500 ? JSON.parse(s) : null;
+    } catch (e) { return null; }
+  }
+  function forwardNotice(title, options, extra) {
+    const id = 'n' + (++noticeSeq) + '-' + Date.now();
+    const opts = options || {};
+    invoke('mnemo_notify', {
+      notice: { id: id, title: String(title || '').slice(0, 300), body: String(opts.body || '').slice(0, 2000), extra: extra || { tag: opts.tag || null, data: safeData(opts.data) } },
+    }).catch(() => {});
+    return id;
+  }
+  class MnemoNotification extends EventTarget {
+    constructor(title, options) {
+      super();
+      const o = options || {};
+      this.title = String(title || '');
+      this.body = o.body || '';
+      this.tag = o.tag || '';
+      this.data = o.data;
+      this.icon = o.icon || '';
+      this.onclick = null; this.onclose = null; this.onshow = null; this.onerror = null;
+      this._id = forwardNotice(title, o);
+      pageNotices.set(this._id, this);
+      if (pageNotices.size > 300) pageNotices.delete(pageNotices.keys().next().value);
+      setTimeout(() => {
+        const ev = new Event('show');
+        try { this.dispatchEvent(ev); if (typeof this.onshow === 'function') this.onshow(ev); } catch (e) {}
+      }, 0);
+    }
+    close() {
+      pageNotices.delete(this._id);
+      const ev = new Event('close');
+      try { this.dispatchEvent(ev); if (typeof this.onclose === 'function') this.onclose(ev); } catch (e) {}
+    }
+    static get permission() { return 'granted'; }
+    static requestPermission(cb) { if (typeof cb === 'function') cb('granted'); return Promise.resolve('granted'); }
+    static get maxActions() { return 2; }
+  }
+  try { Object.defineProperty(window, 'Notification', { value: MnemoNotification, writable: true, configurable: true }); } catch (e) {}
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const query = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) => (d && d.name === 'notifications')
+        ? Promise.resolve({ name: 'notifications', state: 'granted', status: 'granted', onchange: null, addEventListener() {}, removeEventListener() {} })
+        : query(d);
+    }
+  } catch (e) {}
+  try {
+    if (window.ServiceWorkerRegistration) {
+      ServiceWorkerRegistration.prototype.showNotification = function (title, options) {
+        const o = options || {};
+        forwardNotice(title, o, { tag: o.tag || null, data: safeData(o.data) });
+        return Promise.resolve();
+      };
+      ServiceWorkerRegistration.prototype.getNotifications = function () { return Promise.resolve([]); };
+    }
+    // Telegram Web asks its service worker to show message notifications.
+    if (window.ServiceWorker) {
+      const post = ServiceWorker.prototype.postMessage;
+      ServiceWorker.prototype.postMessage = function (msg) {
+        try {
+          if (msg && msg.type === 'showMessageNotification' && msg.payload) {
+            const p = msg.payload;
+            forwardNotice(p.title, { body: p.body }, { chatId: p.chatId != null ? String(p.chatId) : null, messageId: p.messageId != null ? String(p.messageId) : null });
+            return;
+          }
+        } catch (e) {}
+        return post.apply(this, arguments);
+      };
+    }
+  } catch (e) {}
+
+  function clickLikeAUser(el) {
+    const target = el.closest('a, [role="listitem"], [role="row"], [role="button"], [role="link"], li, [tabindex]') || el;
+    ['mousedown', 'mouseup', 'click'].forEach((type) => {
+      try { target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window })); } catch (e) {}
+    });
+  }
+  function openChatByTitle(title) {
+    const t = (title || '').trim();
+    if (!t) return false;
+    const sel = (cfg.chatList && cfg.chatList.sel) || '';
+    const candidates = qa(document, sel).concat(qa(document, '[title]'));
+    for (const el of candidates) {
+      const own = (el.getAttribute('title') || '').trim();
+      const text = ((el.innerText || '').trim().split('\n')[0] || '').trim();
+      if (own === t || text === t) { clickLikeAUser(el); return true; }
+    }
+    return false;
+  }
+  function focusMessage(key) {
+    if (!key) return;
+    let tries = 0;
+    const find = () => {
+      const k = String(key).replace(/"/g, '');
+      const el = q(document, `[data-message-id="${k}"]`) || q(document, `[data-id$="_${k}"]`) || q(document, `[data-id="${k}"]`) || document.getElementById('message-' + k);
+      if (el) {
+        el.scrollIntoView({ block: 'center' });
+        const old = el.style.outline;
+        el.style.outline = '2px solid #8b5cf6';
+        setTimeout(() => { el.style.outline = old; }, 2500);
+      } else if (++tries < 15) setTimeout(find, 400);
+    };
+    find();
+  }
+  window.__MNEMO_NOTICE_CLICK__ = function (p) {
+    p = p || {};
+    const n = p.pageId && pageNotices.get(p.pageId);
+    if (n) {
+      const ev = new Event('click', { cancelable: true });
+      try { n.dispatchEvent(ev); } catch (e) {}
+      try { if (typeof n.onclick === 'function') n.onclick.call(n, ev); } catch (e) {}
+      pageNotices.delete(p.pageId);
+      return;
+    }
+    const x = p.extra || {};
+    if (x.chatId) {
+      location.hash = '#' + x.chatId;
+      if (x.messageId) setTimeout(() => focusMessage(x.messageId), 600);
+      return;
+    }
+    openChatByTitle(p.title);
+  };
+
+  // ---------- the signed-in person's avatar ----------
+  let avatarSent = '';
+  async function detectAvatar() {
+    const specs = cfg.selfAvatar || [];
+    for (const s of specs) {
+      const node = q(document, s.sel);
+      if (!node) continue;
+      const src = s.attr ? (node.getAttribute(s.attr) || '') : (node.currentSrc || node.src || '');
+      if (!src || src === avatarSent) return;
+      avatarSent = src;
+      try {
+        if (src.startsWith('https:') && new URL(src).origin !== location.origin) {
+          await invoke('mnemo_profile', { avatarUrl: src });
+          return;
+        }
+        const blob = await (await fetch(src)).blob();
+        const bmp = await createImageBitmap(blob);
+        const size = 96;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const k = Math.max(size / bmp.width, size / bmp.height);
+        ctx.drawImage(bmp, (size - bmp.width * k) / 2, (size - bmp.height * k) / 2, bmp.width * k, bmp.height * k);
+        await invoke('mnemo_profile', { avatarData: canvas.toDataURL('image/png') });
+      } catch (e) {
+        avatarSent = '';
+      }
+      return;
+    }
+  }
+  setTimeout(detectAvatar, 6000);
+  setInterval(detectAvatar, 60000);
+
   // ---------- styles (constructable sheets are allowed by the pages' CSP) ----------
   let pageSheet = null;
   function setPageCss(on) {

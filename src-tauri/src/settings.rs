@@ -112,6 +112,8 @@ pub struct Account {
     pub capture: bool,
     /// Per-account rules; `None` uses the global rules.
     pub rules: Option<DownloadRules>,
+    /// Show Mnemo's notifications for this account.
+    pub notify: bool,
 }
 
 impl Default for Account {
@@ -123,6 +125,7 @@ impl Default for Account {
             self_name: String::new(),
             capture: true,
             rules: None,
+            notify: true,
         }
     }
 }
@@ -360,6 +363,30 @@ pub fn default_skills() -> Vec<Skill> {
     ]
 }
 
+/// Mnemo's own notifications for new messages.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct NotifySettings {
+    pub enabled: bool,
+    /// Show the message text (off = "New message" only).
+    pub show_content: bool,
+    /// Seconds a notification stays on screen.
+    pub duration_secs: u32,
+    /// Total unread count on Mnemo's taskbar icon.
+    pub taskbar_badge: bool,
+}
+
+impl Default for NotifySettings {
+    fn default() -> Self {
+        NotifySettings {
+            enabled: true,
+            show_content: true,
+            duration_secs: 8,
+            taskbar_badge: true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -378,6 +405,13 @@ pub struct Settings {
     pub accounts: Vec<Account>,
     /// "system", "light" or "dark".
     pub theme: String,
+    /// Sidebar shows only avatars.
+    pub sidebar_compact: bool,
+    /// Start hidden in the tray when Windows starts.
+    pub start_with_windows: bool,
+    /// The window's close button hides Mnemo in the tray instead of quitting.
+    pub close_to_tray: bool,
+    pub notify: NotifySettings,
     pub ai: AiSettings,
 }
 
@@ -393,6 +427,10 @@ impl Default for Settings {
             rules: DownloadRules::default(),
             accounts: vec![],
             theme: "system".into(),
+            sidebar_compact: false,
+            start_with_windows: false,
+            close_to_tray: true,
+            notify: NotifySettings::default(),
             ai: AiSettings::default(),
         }
     }

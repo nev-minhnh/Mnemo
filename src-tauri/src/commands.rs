@@ -40,21 +40,29 @@ pub fn get_state(app: AppHandle, state: State<'_, AppState>) -> Value {
         },
         "configDir": state.config_dir,
         "providers": crate::ai::ai_providers(state.clone()),
+        "avatars": *lock(&state.avatars),
     })
 }
 
 /// Saves settings from the interface. Folders change through their own commands.
 #[tauri::command]
-pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<(), String> {
+pub fn save_settings(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    settings: Settings,
+) -> Result<(), String> {
     let mut cur = lock(&state.settings);
     let mut next = settings;
     next.archive_dir = cur.archive_dir.clone();
     next.accounts = cur.accounts.clone();
+    next.start_with_windows = cur.start_with_windows;
     if next.downloads_dir.as_os_str().is_empty() {
         next.downloads_dir = cur.downloads_dir.clone();
     }
     save(&state, &next)?;
     *cur = next;
+    drop(cur);
+    crate::notify::update_taskbar(&app);
     Ok(())
 }
 
@@ -138,6 +146,15 @@ pub fn remove_account(
         save(&state, &s)?;
     }
     lock(&state.unread).remove(&id);
+    lock(&state.avatars).remove(&id);
+    let _ = std::fs::remove_file(crate::capture::avatar_path(&state.config_dir, &id));
+    let _ = std::fs::remove_file(
+        state
+            .config_dir
+            .join("avatars")
+            .join(format!("{id}.manual")),
+    );
+    crate::notify::update_taskbar(&app);
     if wipe_profile {
         let dir = state.config_dir.join("profiles").join(&id);
         // The browser process may still hold files for a moment after closing.
@@ -186,10 +203,39 @@ pub fn open_devtools(app: AppHandle, id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// The shell reports its sidebar width and whether the AI panel is open.
 #[tauri::command]
-pub fn set_panel(app: AppHandle, state: State<'_, AppState>, open: bool) {
-    *lock(&state.panel_open) = open;
+pub fn set_layout(app: AppHandle, state: State<'_, AppState>, sidebar: f64, panel: bool) {
+    *lock(&state.sidebar_w) = sidebar.clamp(56.0, 400.0);
+    *lock(&state.panel_open) = panel;
     webviews::layout(&app);
+}
+
+/// Sets an account's avatar from an image file the person picked (`None` = back to automatic).
+#[tauri::command]
+pub fn set_account_avatar(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    path: Option<String>,
+) -> Result<(), String> {
+    let manual = state
+        .config_dir
+        .join("avatars")
+        .join(format!("{id}.manual"));
+    match path {
+        Some(p) => {
+            let bytes = std::fs::read(&p).map_err(|e| format!("Không đọc được ảnh: {e}"))?;
+            let data = crate::capture::image_data_url(&bytes, "")
+                .ok_or("Ảnh phải là PNG, JPG, WEBP hoặc GIF, nhỏ hơn 1,5 MB")?;
+            crate::capture::set_avatar(&app, &state, &id, Some(data))?;
+            std::fs::write(&manual, b"").map_err(|e| e.to_string())
+        }
+        None => {
+            let _ = std::fs::remove_file(&manual);
+            crate::capture::set_avatar(&app, &state, &id, None)
+        }
+    }
 }
 
 #[tauri::command]
@@ -549,4 +595,32 @@ pub fn remove_provider(state: State<'_, AppState>, id: String) -> Result<(), Str
     save(&state, &s)?;
     drop(s);
     lock(&state.secrets).set(&id, None)
+}
+
+/// Starts Mnemo hidden in the tray when Windows starts.
+#[tauri::command]
+pub fn set_autostart(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let launcher = app.autolaunch();
+    if enabled {
+        launcher
+            .enable()
+            .map_err(|e| format!("Không bật được khởi động cùng Windows: {e}"))?;
+    } else if launcher.is_enabled().unwrap_or(false) {
+        launcher
+            .disable()
+            .map_err(|e| format!("Không tắt được khởi động cùng Windows: {e}"))?;
+    }
+    let mut s = lock(&state.settings);
+    s.start_with_windows = enabled;
+    save(&state, &s)
+}
+
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
 }

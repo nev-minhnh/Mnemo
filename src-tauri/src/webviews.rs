@@ -14,7 +14,8 @@ use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Webview, 
 pub const MAIN: &str = "main";
 pub const SHELL: &str = "shell";
 pub const ASSIST: &str = "assist";
-pub const SIDEBAR_W: f64 = 68.0;
+/// Default sidebar width until the shell reports its own.
+pub const SIDEBAR_W: f64 = 248.0;
 pub const PANEL_W: f64 = 380.0;
 
 pub fn label_for(account_id: &str) -> String {
@@ -58,9 +59,10 @@ fn account_rect(
     } else {
         0.0
     };
-    let width = (w - SIDEBAR_W - panel).max(200.0);
+    let side = sidebar_w(app);
+    let width = (w - side - panel).max(200.0);
     (
-        LogicalPosition::new(SIDEBAR_W, 0.0),
+        LogicalPosition::new(side, 0.0),
         LogicalSize::new(width, h.max(200.0)),
     )
 }
@@ -85,14 +87,22 @@ pub fn layout(app: &AppHandle) {
     }
 }
 
+pub fn sidebar_w(app: &AppHandle) -> f64 {
+    *lock(&app.state::<AppState>().sidebar_w)
+}
+
 fn on_title(app: &AppHandle, account_id: &str, title: &str) {
     let count = unread_from_title(title);
     let state = app.state::<AppState>();
-    let changed = {
-        let mut u = lock(&state.unread);
-        u.insert(account_id.to_string(), count) != Some(count)
-    };
+    let before = lock(&state.unread).insert(account_id.to_string(), count);
+    let changed = before != Some(count);
+    if let Some(b) = before {
+        if count > b {
+            crate::notify::unread_rose(app, account_id, b, count);
+        }
+    }
     if changed {
+        crate::notify::update_taskbar(app);
         let _ = app.emit_to(
             SHELL,
             "unread",
@@ -240,10 +250,12 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
         .on_download(move |_wv, event| on_download(&a4, &id_dl, event))
         .on_permission_request(|_wv, kind| match kind {
             // Calls, voice notes and message notifications.
-            PermissionKind::Microphone
-            | PermissionKind::Camera
-            | PermissionKind::Notifications
-            | PermissionKind::ClipboardRead => PermissionResponse::Allow,
+            // Notifications go through Mnemo (the page script hands them over), so the
+            // browser's own are refused to avoid showing everything twice.
+            PermissionKind::Notifications => PermissionResponse::Deny,
+            PermissionKind::Microphone | PermissionKind::Camera | PermissionKind::ClipboardRead => {
+                PermissionResponse::Allow
+            }
             _ => PermissionResponse::Default,
         })
         .zoom_hotkeys_enabled(true)
@@ -331,7 +343,7 @@ pub fn show_assist(
     let origin = window.inner_position().map_err(|e| e.to_string())?;
     let (x, y, _w, h) = rect;
     let panel_x = if lock(&app.state::<AppState>().visible).as_deref() == Some(account_id) {
-        SIDEBAR_W
+        sidebar_w(app)
     } else {
         0.0
     };

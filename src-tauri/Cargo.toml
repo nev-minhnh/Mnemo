@@ -5,7 +5,7 @@ authors = ["nev-minhnh"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/nev-minhnh/Mnemo"
 rust-version = "1.85"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [lib]
@@ -31,7 +31,8 @@ rusqlite = { version = "0.41.1", features = ["bundled-sqlcipher-vendored-openssl
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 sha2 = "0.11.1"
-tauri = { version = "2", features = ["unstable", "devtools"] }
+tauri = { version = "2", features = ["unstable", "devtools", "tray-icon", "image-png"] }
+tauri-plugin-autostart = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 tauri-plugin-opener = "2"

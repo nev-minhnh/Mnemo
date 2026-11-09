@@ -14,6 +14,15 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Telegram and Zalo** in one Windows 
 - Số tin chưa đọc trên thanh bên; gọi điện, mic, camera và thông báo được cấp quyền sẵn.
 - Messenger và Instagram bị khóa trong phần tin nhắn: bấm vào trang cá nhân hay bài đăng thì mở trong trình duyệt. Mọi liên kết ra ngoài cũng mở trong trình duyệt.
 
+**Thanh bên, thông báo, khay hệ thống**
+- Mỗi tài khoản hiện **avatar của bạn trong app** (tự lấy từ trang nếu được, hoặc ảnh bạn chọn), có icon nhỏ của app ở góc dưới phải. Bên cạnh là tên app ở trên, tên tài khoản ở dưới, và số tin chưa đọc. Thanh bên thu gọn được, chỉ còn avatar.
+- **Thông báo tin mới của Mnemo** ở góc phải dưới màn hình, gồm: [Tên App], From, giờ, To, Nội dung.
+  - Mnemo nhận chính các thông báo mà app định hiện, nên có cả tin ở hội thoại chưa mở. Thông báo gốc của trang bị tắt để không trùng.
+  - **Bấm vào thông báo** thì mở Mnemo đúng tài khoản và chạy lại hành động bấm thông báo của chính app, để tới đúng hội thoại và tin nhắn.
+  - Bật/tắt riêng từng tài khoản. Có tùy chọn ẩn nội dung và chỉnh thời gian hiển thị.
+- **Số tin chưa đọc tổng** trên biểu tượng taskbar (có thể tắt), trên tiêu đề cửa sổ và trên tooltip ở khay.
+- **Khởi động cùng Windows**: Mnemo chạy ẩn ở khay hệ thống, vẫn lưu tin và vẫn hiện thông báo. **Bấm × thì thu về khay**; thoát hẳn từ menu khay hoặc nút "Thoát Mnemo ngay" trong Cài đặt.
+
 **Kho tin nhắn cục bộ**
 - **Mức A, tự động:** tin nhắn và tệp mà ứng dụng hiển thị được lưu ngay khi bạn mở hội thoại.
 - **Mức B, nhập tệp xuất chính thức:**
@@ -72,6 +81,8 @@ Tải `Mnemo-<version>-windows-x64.zip` từ mục Actions/Releases rồi giải
 - **Thời gian tin nhắn:** WhatsApp cho thời gian chính xác đến phút. Telegram, Messenger, Instagram và Zalo chỉ hiển thị giờ, nên kho ghi giờ hiển thị kèm thời điểm lưu (đánh dấu ≈). Tin nhập từ tệp xuất luôn có thời gian chính xác.
 - **"Chưa xem"** là các tin đến nằm sau vạch "tin chưa đọc" của ứng dụng (Telegram), hoặc sau lần cuối bạn trả lời hay bấm "Đánh dấu đã xem".
 - Zalo chưa có bản xuất chính thức đọc được, nên chỉ có mức A.
+- Avatar tự động lấy được trên WhatsApp và Messenger (nếu trang hiển thị). Telegram Web không hiện avatar của chính bạn, nên với Telegram (và khi selector không khớp) hãy chọn ảnh trong trang tài khoản.
+- Thông báo dựa vào việc app gửi thông báo web. Nếu một app không gửi, Mnemo vẫn hiện thông báo chung "N tin nhắn mới" khi số chưa đọc tăng.
 - Viber không có bản web nên không được hỗ trợ.
 
 ## Bảo mật và quyền riêng tư

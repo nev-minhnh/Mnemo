@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-profile"
+description = "Enables the mnemo_profile command without any pre-configured scope."
+commands.allow = ["mnemo_profile"]
+
+[[permission]]
+identifier = "deny-mnemo-profile"
+description = "Denies the mnemo_profile command without any pre-configured scope."
+commands.deny = ["mnemo_profile"]

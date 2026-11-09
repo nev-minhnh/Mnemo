@@ -10,6 +10,7 @@ pub mod commands;
 pub mod crypto;
 pub mod importers;
 pub mod media;
+pub mod notify;
 pub mod rules;
 pub mod services;
 pub mod settings;
@@ -50,6 +51,25 @@ fn apply_retention(state: &AppState) {
     }
 }
 
+fn load_avatars(config_dir: &std::path::Path) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for e in std::fs::read_dir(config_dir.join("avatars"))
+        .into_iter()
+        .flatten()
+        .flatten()
+    {
+        let p = e.path();
+        if p.extension().map(|x| x == "txt").unwrap_or(false) {
+            if let (Some(id), Ok(data)) = (p.file_stem(), std::fs::read_to_string(&p)) {
+                if data.starts_with("data:image/") {
+                    out.insert(id.to_string_lossy().into_owned(), data);
+                }
+            }
+        }
+    }
+    out
+}
+
 fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>> {
     let config_dir = app.path().app_config_dir()?;
     std::fs::create_dir_all(&config_dir)?;
@@ -68,6 +88,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
     let http = reqwest::Client::builder()
         .user_agent(concat!("Mnemo/", env!("CARGO_PKG_VERSION")))
         .build()?;
+    let config_dir_for_avatars = config_dir.clone();
     let state = AppState {
         secrets: Mutex::new(crypto::Secrets::load(&config_dir)),
         config_dir,
@@ -81,6 +102,9 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         visible: Mutex::new(None),
         panel_open: Mutex::new(false),
         assist: Mutex::new(Default::default()),
+        sidebar_w: Mutex::new(webviews::SIDEBAR_W),
+        avatars: Mutex::new(load_avatars(&config_dir_for_avatars)),
+        notices: Mutex::new(vec![]),
         http,
     };
     if key.is_some() {
@@ -89,14 +113,62 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
     Ok(state)
 }
 
+const HIDDEN_ARG: &str = "--hidden";
+
+/// Brings the main window back (from the tray, minimized or behind other windows).
+pub fn show_main(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_window(webviews::MAIN) {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{MenuBuilder, MenuItemBuilder};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    let open = MenuItemBuilder::with_id("open", "Mở Mnemo").build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", "Thoát Mnemo").build(app)?;
+    let menu = MenuBuilder::new(app)
+        .item(&open)
+        .separator()
+        .item(&quit)
+        .build()?;
+    let mut tray = TrayIconBuilder::with_id("mnemo")
+        .tooltip("Mnemo – Every chat in sight, locked safe and tight.")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, e| match e.id().as_ref() {
+            "open" => show_main(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, e| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = e
+            {
+                show_main(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(w) = app.get_window(webviews::MAIN) {
-                let _ = w.unminimize();
-                let _ = w.set_focus();
-            }
+            show_main(app)
         }))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![HIDDEN_ARG]),
+        ))
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
@@ -110,12 +182,16 @@ pub fn run() {
             let state = build_state(app)?;
             app.manage(state);
 
+            // Started with Windows: stay in the tray, pages keep running and notifying.
+            let hidden = std::env::args().any(|a| a == HIDDEN_ARG);
             let window = WindowBuilder::new(app, webviews::MAIN)
                 .title("Mnemo")
                 .inner_size(1360.0, 860.0)
                 .min_inner_size(900.0, 560.0)
                 .center()
+                .visible(!hidden)
                 .build()?;
+            build_tray(app)?;
             let scale = window.scale_factor().unwrap_or(1.0);
             let size = window.inner_size()?.to_logical::<f64>(scale);
             window.add_child(
@@ -125,10 +201,22 @@ pub fn run() {
             )?;
 
             let handle = app.handle().clone();
-            window.on_window_event(move |e| {
-                if let WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } = e {
-                    webviews::layout(&handle);
+            window.on_window_event(move |e| match e {
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    webviews::layout(&handle)
                 }
+                WindowEvent::CloseRequested { api, .. } => {
+                    if handle.state::<AppState>().settings().close_to_tray {
+                        api.prevent_close();
+                        if let Some(w) = handle.get_window(webviews::MAIN) {
+                            let _ = w.hide();
+                        }
+                        webviews::hide_assist(&handle);
+                    } else {
+                        handle.exit(0);
+                    }
+                }
+                _ => {}
             });
 
             // Open the accounts' pages in the background so messages keep arriving.
@@ -199,7 +287,15 @@ pub fn run() {
             commands::reload_account,
             commands::sleep_account,
             commands::open_devtools,
-            commands::set_panel,
+            commands::set_layout,
+            commands::set_autostart,
+            commands::quit_app,
+            commands::set_account_avatar,
+            capture::mnemo_profile,
+            notify::mnemo_notify,
+            notify::notices_state,
+            notify::notice_dismiss,
+            notify::notice_open,
             commands::pick_folder,
             commands::pick_file,
             commands::set_archive_dir,

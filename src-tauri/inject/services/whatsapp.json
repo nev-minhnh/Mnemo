@@ -1,23 +1,67 @@
 {
   "_note": "WhatsApp Web. Message rows carry data-id = \"<true|false>_<chat jid>_<message id>\". Copy this file to services\\whatsapp.json in Mnemo's config folder to override any field.",
   "chat": {
-    "key": { "from": "message", "attr": "data-id", "re": "^(?:true|false)_([^_]+@[a-z.]+)_" },
+    "key": {
+      "from": "message",
+      "attr": "data-id",
+      "re": "^(?:true|false)_([^_]+@[a-z.]+)_"
+    },
     "title": [
-      { "sel": "#main header span[dir='auto']", "attr": "title" },
-      { "sel": "#main header span[dir='auto']" }
+      {
+        "sel": "#main header span[dir='auto']",
+        "attr": "title"
+      },
+      {
+        "sel": "#main header span[dir='auto']"
+      }
     ],
     "groupKeyRe": "@g\\.us$"
   },
   "message": {
     "sel": "#main div[data-id]",
-    "key": { "attr": "data-id" },
-    "text": { "sel": "div.copyable-text span.selectable-text" },
-    "sender": { "sel": "div.copyable-text", "attr": "data-pre-plain-text", "re": "\\]\\s*(.+?):\\s*$" },
-    "time": { "sel": "div.copyable-text", "attr": "data-pre-plain-text", "re": "^(\\[[^\\]]+\\])" },
+    "key": {
+      "attr": "data-id"
+    },
+    "text": {
+      "sel": "div.copyable-text span.selectable-text"
+    },
+    "sender": {
+      "sel": "div.copyable-text",
+      "attr": "data-pre-plain-text",
+      "re": "\\]\\s*(.+?):\\s*$"
+    },
+    "time": {
+      "sel": "div.copyable-text",
+      "attr": "data-pre-plain-text",
+      "re": "^(\\[[^\\]]+\\])"
+    },
     "timeParse": "whatsapp",
-    "outgoing": { "keyRe": "^true_" },
-    "recalled": ["This message was deleted", "You deleted this message", "Tin nhắn này đã bị xóa", "Bạn đã xóa tin nhắn này"]
+    "outgoing": {
+      "keyRe": "^true_"
+    },
+    "recalled": [
+      "This message was deleted",
+      "You deleted this message",
+      "Tin nhắn này đã bị xóa",
+      "Bạn đã xóa tin nhắn này"
+    ]
   },
-  "media": { "sel": "img[src^='blob:'], video[src^='blob:'], audio[src^='blob:']", "minSize": 80 },
-  "compose": { "sel": "footer div[contenteditable='true']" }
+  "media": {
+    "sel": "img[src^='blob:'], video[src^='blob:'], audio[src^='blob:']",
+    "minSize": 80
+  },
+  "compose": {
+    "sel": "footer div[contenteditable='true']"
+  },
+  "selfAvatar": [
+    {
+      "sel": "#side header img[src]"
+    },
+    {
+      "sel": "header img[src]"
+    }
+  ],
+  "chatList": {
+    "sel": "#pane-side span[title]"
+  }
 }

@@ -24,7 +24,7 @@
   --shadow-lg: 0 10px 40px rgba(20, 16, 50, .18);
   --radius: 10px;
   --radius-sm: 7px;
-  --sidebar: 68px;
+  --sidebar: 248px;
   --panel: 380px;
   color-scheme: light;
 }
@@ -134,21 +134,42 @@ label.check { display: inline-flex; align-items: center; gap: 8px; cursor: point
 /* ---------- shell ---------- */
 #app { display: grid; grid-template-columns: var(--sidebar) 1fr; height: 100vh; }
 #app.panel { grid-template-columns: var(--sidebar) 1fr var(--panel); }
-.sidebar { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; background: var(--surface); border-right: 1px solid var(--border); min-height: 0; }
-.sidebar .logo { width: 38px; height: 38px; border-radius: 11px; margin-bottom: 6px; cursor: pointer; }
-.sidebar .accounts { display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-y: auto; scrollbar-width: none; padding: 4px 0; width: 100%; flex: 1; min-height: 0; }
-.acc-btn { position: relative; width: 44px; height: 44px; border: 0; padding: 0; background: none; cursor: pointer; flex: none; }
-.acc-btn .svc { width: 44px; height: 44px; font-size: 14px; transition: border-radius .15s, transform .1s; }
-.acc-btn:hover .svc { border-radius: 14px; transform: scale(1.04); }
-.acc-btn.active::before { content: ""; position: absolute; left: -12px; top: 10px; width: 4px; height: 24px; border-radius: 0 3px 3px 0; background: var(--accent); }
-.acc-btn .count { position: absolute; right: -5px; top: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; border: 2px solid var(--surface); }
-.acc-btn.tagged { margin-bottom: 8px; }
-.acc-btn .tag { position: absolute; left: 50%; bottom: -3px; transform: translateX(-50%); max-width: 56px; padding: 0 4px; border-radius: 4px; background: var(--surface); color: var(--text-2); font-size: 9.5px; line-height: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 0 0 1px var(--border); }
-.side-btn { width: 44px; height: 40px; border-radius: 10px; border: 0; background: transparent; color: var(--text-2); cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none; }
-.side-btn:hover { background: var(--surface-2); color: var(--text); }
-.side-btn.active { background: var(--accent-soft); color: var(--accent); }
-.side-btn svg { width: 20px; height: 20px; }
-.side-sep { width: 28px; height: 1px; background: var(--border); margin: 4px 0; flex: none; }
+.sidebar { display: flex; flex-direction: column; gap: 2px; padding: 10px 10px 12px; background: var(--surface); border-right: 1px solid var(--border); min-height: 0; min-width: 0; overflow: hidden; }
+.side-head { display: flex; align-items: center; gap: 10px; padding: 2px 4px 10px; }
+.side-head .logo { width: 32px; height: 32px; border-radius: 9px; cursor: pointer; flex: none; }
+.side-head .brand { display: flex; flex-direction: column; line-height: 1.2; cursor: pointer; min-width: 0; }
+.side-toggle { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; font-size: 16px; line-height: 1; flex: none; }
+.side-toggle:hover { background: var(--surface-2); }
+.side-section { padding: 4px 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
+.sidebar .accounts { display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 0 -4px; padding: 0 4px; }
+.acc-row { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 8px; border: 0; border-radius: 10px; background: transparent; cursor: pointer; text-align: left; flex: none; }
+.acc-row:hover { background: var(--surface-2); }
+.acc-row.active { background: var(--accent-soft); }
+.acc-row.active::before { content: ""; position: absolute; left: -4px; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--accent); }
+.acc-avatar { position: relative; flex: none; display: flex; }
+.acc-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
+.acc-app { font-size: 11.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc-name { font-size: 13.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc-row.active .acc-app { color: var(--accent); }
+.pill { flex: none; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 10px; background: var(--danger); color: #fff; font-size: 11.5px; font-weight: 700; line-height: 20px; text-align: center; }
+.acc-avatar .count { position: absolute; right: -6px; top: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center; border: 2px solid var(--surface); }
+.add-circle { width: 38px; height: 38px; border-radius: 50%; border: 1.5px dashed var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-2); }
+.acc-row.add .acc-name { color: var(--text-2); }
+.avatar { position: relative; display: inline-flex; flex: none; }
+.avatar > img, .avatar > .initial { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; background: var(--surface-3); }
+.avatar .mini { position: absolute; right: -3px; bottom: -3px; border-radius: 30%; box-shadow: 0 0 0 2px var(--surface); font-weight: 800; letter-spacing: -.04em; }
+.side-nav { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--border); }
+.side-item { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); cursor: pointer; text-align: left; white-space: nowrap; }
+.side-item:hover { background: var(--surface-2); color: var(--text); }
+.side-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.side-item svg { width: 19px; height: 19px; }
+#app.compact .side-label, #app.compact .pill { display: none; }
+#app.compact .sidebar { padding: 10px 8px 12px; align-items: center; }
+#app.compact .side-head { flex-direction: column; gap: 8px; padding: 2px 0 10px; }
+#app.compact .acc-row { justify-content: center; padding: 6px 0; width: 56px; }
+#app.compact .side-item { justify-content: center; padding: 0; width: 44px; }
+#app.compact .side-nav { align-items: center; width: 100%; }
+#app.compact .accounts { align-items: center; width: 100%; }
 .main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .page { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px 48px; }
 .page-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }

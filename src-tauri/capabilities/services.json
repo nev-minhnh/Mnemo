@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "services",
-  "description": "The apps' own pages: only saving what they show and opening the writing popup.",
+  "description": "The apps' own pages: only saving what they show, handing over notifications and opening the writing popup.",
   "webviews": [
     "acc-*"
   ],
@@ -22,6 +22,8 @@
     "allow-mnemo-media-blob",
     "allow-mnemo-media-url",
     "allow-mnemo-assist-open",
-    "allow-mnemo-assist-check"
+    "allow-mnemo-assist-check",
+    "allow-mnemo-profile",
+    "allow-mnemo-notify"
   ]
 }

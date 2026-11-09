@@ -1,25 +1,59 @@
 {
   "_note": "Telegram Web A (open source: github.com/Ajaxy/telegram-tt). Chat id is in the URL hash; messages are .Message[data-message-id], own messages have class 'own'.",
   "chat": {
-    "key": { "from": "hash", "re": "^#(-?\\d+)" },
+    "key": {
+      "from": "hash",
+      "re": "^#(-?\\d+)"
+    },
     "title": [
-      { "sel": ".MiddleHeader .ChatInfo .fullName" },
-      { "sel": ".MiddleHeader .ChatInfo .title" },
-      { "sel": ".MiddleHeader h3" }
+      {
+        "sel": ".MiddleHeader .ChatInfo .fullName"
+      },
+      {
+        "sel": ".MiddleHeader .ChatInfo .title"
+      },
+      {
+        "sel": ".MiddleHeader h3"
+      }
     ],
     "groupKeyRe": "^-"
   },
   "message": {
     "sel": ".MessageList .Message[data-message-id]",
-    "key": { "attr": "data-message-id" },
-    "text": { "sel": ".text-content", "exclude": [".MessageMeta", ".Reactions", ".message-reactions", ".message-time"] },
-    "sender": { "sel": ".message-title-name" },
+    "key": {
+      "attr": "data-message-id"
+    },
+    "text": {
+      "sel": ".text-content",
+      "exclude": [
+        ".MessageMeta",
+        ".Reactions",
+        ".message-reactions",
+        ".message-time"
+      ]
+    },
+    "sender": {
+      "sel": ".message-title-name"
+    },
     "inheritSender": true,
-    "time": { "sel": ".message-time" },
-    "outgoing": { "selfClass": "own" },
+    "time": {
+      "sel": ".message-time"
+    },
+    "outgoing": {
+      "selfClass": "own"
+    },
     "recalled": []
   },
-  "media": { "sel": "img.full-media[src^='blob:'], video[src^='blob:'], .media-inner img[src^='blob:']", "minSize": 80 },
+  "media": {
+    "sel": "img.full-media[src^='blob:'], video[src^='blob:'], .media-inner img[src^='blob:']",
+    "minSize": 80
+  },
   "unreadDivider": ".MessageList .unread-divider",
-  "compose": { "sel": "#editable-message-text" }
+  "compose": {
+    "sel": "#editable-message-text"
+  },
+  "selfAvatar": [],
+  "chatList": {
+    "sel": ".chat-list .ListItem .fullName"
+  }
 }

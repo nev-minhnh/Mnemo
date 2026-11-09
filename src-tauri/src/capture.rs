@@ -369,3 +369,128 @@ pub async fn mnemo_media_url(
     }
     save_live_media(&state, &account, &meta, &body, &mime)
 }
+
+/// Where account avatars are kept (one small data-URL file per account).
+pub fn avatar_path(config_dir: &std::path::Path, account_id: &str) -> std::path::PathBuf {
+    config_dir.join("avatars").join(format!(
+        "{}.txt",
+        crate::util::safe_component(account_id, 40)
+    ))
+}
+
+pub fn set_avatar(
+    app: &AppHandle,
+    state: &AppState,
+    account_id: &str,
+    data_url: Option<String>,
+) -> Result<(), String> {
+    let path = avatar_path(&state.config_dir, account_id);
+    match &data_url {
+        Some(d) => crate::util::write_atomic(&path, d.as_bytes()).map_err(|e| e.to_string())?,
+        None => {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+    {
+        let mut a = lock(&state.avatars);
+        match &data_url {
+            Some(d) => a.insert(account_id.to_string(), d.clone()),
+            None => a.remove(account_id),
+        };
+    }
+    let _ = app.emit_to(
+        SHELL,
+        "avatar",
+        json!({ "account": account_id, "avatar": data_url }),
+    );
+    Ok(())
+}
+
+/// Turns image bytes into a data URL, if they really are a small image.
+pub fn image_data_url(bytes: &[u8], mime_hint: &str) -> Option<String> {
+    if bytes.len() > 1_500_000 || bytes.len() < 32 {
+        return None;
+    }
+    let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+        "image/png"
+    } else if bytes.starts_with(&[0xFF, 0xD8]) {
+        "image/jpeg"
+    } else if bytes.starts_with(b"RIFF") && bytes.len() > 12 && &bytes[8..12] == b"WEBP" {
+        "image/webp"
+    } else if bytes.starts_with(b"GIF8") {
+        "image/gif"
+    } else if mime_hint == "image/avif" {
+        "image/avif"
+    } else {
+        return None;
+    };
+    Some(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+/// Called by an app's page with the signed-in person's own avatar (detected automatically).
+/// A picture the person chose by hand is never replaced.
+#[tauri::command]
+pub async fn mnemo_profile(
+    app: AppHandle,
+    webview: Webview,
+    state: State<'_, AppState>,
+    avatar_data: Option<String>,
+    avatar_url: Option<String>,
+) -> Result<(), String> {
+    let s = state.settings();
+    let account = account_for(&webview, &s)?;
+    if state
+        .config_dir
+        .join("avatars")
+        .join(format!("{}.manual", account.id))
+        .exists()
+    {
+        return Ok(());
+    }
+    let bytes = if let Some(d) = avatar_data {
+        let b64 = d
+            .split_once(";base64,")
+            .map(|(_, b)| b)
+            .ok_or("bad avatar")?;
+        if b64.len() > 2_000_000 {
+            return Ok(());
+        }
+        base64::engine::general_purpose::STANDARD
+            .decode(b64.as_bytes())
+            .map_err(|_| "bad avatar")?
+    } else if let Some(u) = avatar_url {
+        let parsed = url::Url::parse(&u).map_err(|_| "bad url")?;
+        let def = crate::services::def(account.service);
+        if parsed.scheme() != "https"
+            || !parsed
+                .host_str()
+                .map(|h| crate::services::host_matches(h, def.media_hosts))
+                .unwrap_or(false)
+        {
+            return Ok(());
+        }
+        let resp = state
+            .http
+            .get(parsed)
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !resp.status().is_success() || resp.content_length().unwrap_or(0) > 1_500_000 {
+            return Ok(());
+        }
+        resp.bytes().await.map_err(|e| e.to_string())?.to_vec()
+    } else {
+        return Ok(());
+    };
+    let Some(data_url) = image_data_url(&bytes, "") else {
+        return Ok(());
+    };
+    if lock(&state.avatars).get(&account.id) == Some(&data_url) {
+        return Ok(());
+    }
+    set_avatar(&app, &state, &account.id, Some(data_url))
+}

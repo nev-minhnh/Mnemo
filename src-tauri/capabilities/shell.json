@@ -23,7 +23,8 @@
     "allow-reload-account",
     "allow-sleep-account",
     "allow-open-devtools",
-    "allow-set-panel",
+    "allow-set-layout",
+    "allow-set-account-avatar",
     "allow-pick-folder",
     "allow-pick-file",
     "allow-set-archive-dir",
@@ -53,6 +54,8 @@
     "allow-ai-summarize",
     "allow-ai-suggest-replies",
     "allow-ai-ask",
-    "allow-ai-insert-reply"
+    "allow-ai-insert-reply",
+    "allow-set-autostart",
+    "allow-quit-app"
   ]
 }

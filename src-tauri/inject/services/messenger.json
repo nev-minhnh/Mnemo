@@ -1,22 +1,69 @@
 {
   "_note": "Messenger on facebook.com/messages (messenger.com closed in April 2026). Facebook renames its CSS classes often, so these selectors use roles and attributes and may need tuning: override them in services\\messenger.json.",
-  "homeRedirect": { "from": ["/", "/home.php"], "to": "/messages/" },
+  "homeRedirect": {
+    "from": [
+      "/",
+      "/home.php"
+    ],
+    "to": "/messages/"
+  },
   "css": "div[role='banner']{display:none !important} :root{--header-height:0px !important}",
-  "cssPaths": ["/messages"],
+  "cssPaths": [
+    "/messages"
+  ],
   "chat": {
-    "key": { "from": "path", "re": "^/messages/(?:e2ee/)?t/(\\d+)" },
+    "key": {
+      "from": "path",
+      "re": "^/messages/(?:e2ee/)?t/(\\d+)"
+    },
     "title": [
-      { "sel": "div[role='main'] h2 span" },
-      { "sel": "div[role='main'] h2" }
+      {
+        "sel": "div[role='main'] h2 span"
+      },
+      {
+        "sel": "div[role='main'] h2"
+      }
     ]
   },
   "message": {
     "sel": "div[role='main'] div[role='row']",
-    "text": { "sel": "div[dir='auto']" },
-    "sender": [{ "sel": "h5 span" }, { "sel": "h4 span" }],
+    "text": {
+      "sel": "div[dir='auto']"
+    },
+    "sender": [
+      {
+        "sel": "h5 span"
+      },
+      {
+        "sel": "h4 span"
+      }
+    ],
     "inheritSender": false,
-    "recalled": ["unsent a message", "You unsent a message", "đã thu hồi một tin nhắn", "Bạn đã thu hồi một tin nhắn"]
+    "recalled": [
+      "unsent a message",
+      "You unsent a message",
+      "đã thu hồi một tin nhắn",
+      "Bạn đã thu hồi một tin nhắn"
+    ]
   },
-  "media": { "sel": "img[src*='fbcdn.net'], video[src^='blob:']", "minSize": 120 },
-  "compose": { "sel": "div[role='textbox'][contenteditable='true']" }
+  "media": {
+    "sel": "img[src*='fbcdn.net'], video[src^='blob:']",
+    "minSize": 120
+  },
+  "compose": {
+    "sel": "div[role='textbox'][contenteditable='true']"
+  },
+  "selfAvatar": [
+    {
+      "sel": "div[role='banner'] svg image",
+      "attr": "xlink:href"
+    },
+    {
+      "sel": "div[role='banner'] svg image",
+      "attr": "href"
+    }
+  ],
+  "chatList": {
+    "sel": "a[href*='/messages/t/'], a[href*='/messages/e2ee/t/']"
+  }
 }
