@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-writing-action"
+description = "Enables the writing_action command without any pre-configured scope."
+commands.allow = ["writing_action"]
+
+[[permission]]
+identifier = "deny-writing-action"
+description = "Denies the writing_action command without any pre-configured scope."
+commands.deny = ["writing_action"]

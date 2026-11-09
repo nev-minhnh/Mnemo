@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-writing-state"
+description = "Enables the writing_state command without any pre-configured scope."
+commands.allow = ["writing_state"]
+
+[[permission]]
+identifier = "deny-writing-state"
+description = "Denies the writing_state command without any pre-configured scope."
+commands.deny = ["writing_state"]

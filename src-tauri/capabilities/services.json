@@ -35,6 +35,7 @@
     "allow-mnemo-assist-open",
     "allow-mnemo-assist-check",
     "allow-mnemo-assist-learn",
+    "allow-mnemo-writing",
     "allow-mnemo-profile",
     "allow-mnemo-notify"
   ]

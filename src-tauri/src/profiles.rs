@@ -111,10 +111,82 @@ pub fn assign_all(settings: &mut Settings) {
     }
 }
 
-/// At start, before any page opens: a group folder that doesn't exist yet is made from the
-/// own folder of its first account, so that account stays signed in. The group's other
-/// accounts sign in once more; their old folders are left in place (and can be deleted).
-pub fn migrate(config_dir: &Path, settings: &Settings) {
+/// Turning sharing off: every account in a shared group goes back to a folder of its own,
+/// made at next start as a copy of the group's (so it stays signed in).
+pub fn unshare_all(settings: &mut Settings) {
+    for a in settings.accounts.iter_mut() {
+        if a.profile.starts_with("shared-") {
+            a.pending_copy = std::mem::take(&mut a.profile);
+        }
+    }
+}
+
+/// Caches the copy can leave out (rebuilt by the browser).
+const SKIP: &[&str] = &[
+    "Cache",
+    "Code Cache",
+    "GPUCache",
+    "GrShaderCache",
+    "ShaderCache",
+    "GraphiteDawnCache",
+    "DawnCache",
+    "DawnGraphiteCache",
+    "Crashpad",
+    "component_crx_cache",
+];
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to)?;
+    for e in std::fs::read_dir(from)? {
+        let e = e?;
+        let name = e.file_name();
+        if SKIP.iter().any(|s| name == *s) {
+            continue;
+        }
+        let ty = e.file_type()?;
+        let target = to.join(&name);
+        if ty.is_dir() {
+            copy_dir(&e.path(), &target)?;
+        } else if ty.is_file() {
+            // A lock file of a browser that is gone may refuse to be read; skip it.
+            let _ = std::fs::copy(e.path(), &target);
+        }
+    }
+    Ok(())
+}
+
+/// At start, before any page opens:
+/// - a group folder that doesn't exist yet is made from the own folder of its first
+///   account, so that account stays signed in (the group's others sign in once more; their
+///   old folders are left in place);
+/// - an account leaving a group gets a copy of the group's folder, so nobody signs in again.
+pub fn migrate(config_dir: &Path, settings: &mut Settings) {
+    for a in settings.accounts.iter_mut() {
+        if a.pending_copy.is_empty() {
+            continue;
+        }
+        let from = config_dir.join("profiles").join(&a.pending_copy);
+        let own = config_dir.join("profiles").join(&a.id);
+        if from.exists() {
+            if own.exists() {
+                let _ = std::fs::remove_dir_all(&own);
+            }
+            match copy_dir(&from, &own) {
+                Ok(()) => log::info!("{} has its own browser data again", a.label),
+                Err(e) => log::warn!("cannot copy {} to {}: {e}", from.display(), own.display()),
+            }
+        }
+        a.pending_copy.clear();
+    }
+    // Groups nobody uses any more.
+    if let Ok(dir) = std::fs::read_dir(config_dir.join("profiles")) {
+        for e in dir.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with("shared-") && !settings.accounts.iter().any(|a| a.profile == name) {
+                let _ = std::fs::remove_dir_all(e.path());
+            }
+        }
+    }
     for a in &settings.accounts {
         if a.profile.is_empty() {
             continue;
@@ -213,12 +285,33 @@ mod tests {
         let mut st = Settings::default();
         st.accounts = vec![acc("a", ServiceId::Zalo), acc("b", ServiceId::Whatsapp)];
         assign_all(&mut st);
-        migrate(cfg, &st);
+        migrate(cfg, &mut st);
         assert!(cfg.join("profiles/shared-0/EBWebView").exists());
         assert!(!cfg.join("profiles/a").exists());
         assert!(
             cfg.join("profiles/b").exists(),
             "the second account's old folder is kept"
+        );
+        // Sharing off: both get a copy of the group (sign-ins kept), the group goes away.
+        std::fs::write(cfg.join("profiles/shared-0/EBWebView/Cookies"), b"c").unwrap();
+        std::fs::create_dir_all(cfg.join("profiles/shared-0/EBWebView/Default/Cache")).unwrap();
+        unshare_all(&mut st);
+        migrate(cfg, &mut st);
+        for id in ["a", "b"] {
+            assert!(
+                cfg.join(format!("profiles/{id}/EBWebView/Cookies"))
+                    .exists()
+            );
+            assert!(
+                !cfg.join(format!("profiles/{id}/EBWebView/Default/Cache"))
+                    .exists()
+            );
+        }
+        assert!(!cfg.join("profiles/shared-0").exists());
+        assert!(
+            st.accounts
+                .iter()
+                .all(|a| a.profile.is_empty() && a.pending_copy.is_empty())
         );
     }
 }

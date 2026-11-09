@@ -282,10 +282,12 @@ pub async fn mnemo_assist_check(
     webview: Webview,
     state: State<'_, AppState>,
     text: String,
+    force: Option<bool>,
 ) -> Result<Value, String> {
     let s = state.settings();
     crate::capture::account_for(&webview, &s)?;
-    if !s.ai.auto_check {
+    // `force`: the person clicked the checker; otherwise only when checking as you type.
+    if !s.ai.auto_check && !force.unwrap_or(false) {
         return Ok(json!({ "issues": [] }));
     }
     check_text(
@@ -294,6 +296,98 @@ pub async fn mnemo_assist_check(
         &crate::util::truncate_chars(&text, 20_000),
     )
     .await
+}
+
+/// The page reports its draft check (busy, suggestions, score, tone) for the Writing
+/// assistant panel; `open` when the person clicked the checker.
+#[tauri::command]
+pub fn mnemo_writing(
+    app: AppHandle,
+    webview: Webview,
+    state: State<'_, AppState>,
+    draft: Value,
+    open: Option<bool>,
+) -> Result<(), String> {
+    let account = crate::capture::account_for(&webview, &state.settings())?;
+    let mut v = draft;
+    if let Some(t) = v.get("text").and_then(|t| t.as_str()) {
+        v["text"] = json!(crate::util::truncate_chars(t, 20_000));
+    }
+    if v.get("issues")
+        .and_then(|i| i.as_array())
+        .is_some_and(|a| a.len() > 50)
+    {
+        v["issues"] = json!(v["issues"].as_array().map(|a| a[..50].to_vec()));
+    }
+    v["account"] = json!(account.id);
+    lock(&state.writing).insert(account.id.clone(), v.clone());
+    let _ = app.emit_to(webviews::SHELL, "writing", &v);
+    if open.unwrap_or(false) {
+        let _ = app.emit_to(webviews::SHELL, "writing-open", &account.id);
+    }
+    Ok(())
+}
+
+/// What the Writing assistant panel shows for an account.
+#[tauri::command]
+pub fn writing_state(state: State<'_, AppState>, account: String) -> Value {
+    let s = state.settings();
+    let mut v = lock(&state.writing)
+        .get(&account)
+        .cloned()
+        .unwrap_or_else(|| json!({ "text": "", "issues": [], "busy": false }));
+    v["autoCheck"] = json!(s.ai.auto_check);
+    v["choice"] = json!(s.ai.writing);
+    v["providers"] = json!(provider_views(&s, &state));
+    v["goals"] = json!(s.ai.goals);
+    v["dictionary"] = json!(s.ai.dictionary);
+    v["skills"] = json!(s.ai.skills);
+    v
+}
+
+/// The panel acts on a suggestion in the page: "accept", "dismiss", "learn", "focus"
+/// (highlight it in the message box) or "recheck".
+#[tauri::command]
+pub fn writing_action(
+    app: AppHandle,
+    account: String,
+    action: String,
+    original: Option<String>,
+) -> Result<(), String> {
+    if !["accept", "dismiss", "learn", "focus", "recheck", "refresh"].contains(&action.as_str()) {
+        return Err("Unknown action".into());
+    }
+    let wv = app
+        .get_webview(&webviews::label_for(&account))
+        .ok_or("Trang của tài khoản đã đóng")?;
+    let script = format!(
+        "window.__MNEMO_ISSUE__ && window.__MNEMO_ISSUE__({}, {});",
+        serde_json::to_string(&action).map_err(|e| e.to_string())?,
+        serde_json::to_string(&original.unwrap_or_default()).map_err(|e| e.to_string())?
+    );
+    wv.eval(&script).map_err(|e| e.to_string())
+}
+
+/// Replaces the draft in the message box with text from the panel's Write tab.
+#[tauri::command]
+pub fn writing_apply(app: AppHandle, account: String, text: String) -> Result<(), String> {
+    apply_to_account(&app, &account, &text, "replace")
+}
+
+/// "Check as you type" on or off; the open pages pick it up at once.
+#[tauri::command]
+pub fn set_auto_check(app: AppHandle, state: State<'_, AppState>, on: bool) -> Result<(), String> {
+    {
+        let mut s = lock(&state.settings);
+        s.ai.auto_check = on;
+        s.save(&state.config_dir).map_err(|e| e.to_string())?;
+    }
+    for wv in app.webviews().values() {
+        if wv.label().starts_with("acc-") {
+            let _ = wv.eval("window.__MNEMO_ISSUE__ && window.__MNEMO_ISSUE__('refresh', '');");
+        }
+    }
+    Ok(())
 }
 
 /// "Add to dictionary" from a suggestion card (in the page or in the popup).

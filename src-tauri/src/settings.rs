@@ -141,6 +141,10 @@ pub struct Account {
     /// Turned off for now: no page, no memory, no notifications; the sign-in stays on disk.
     #[serde(default)]
     pub disabled: bool,
+    /// Set when sharing is turned off: at next start this account gets its own copy of
+    /// that shared folder (sign-ins included), then this is cleared.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub pending_copy: String,
 }
 
 impl Default for Account {
@@ -155,6 +159,7 @@ impl Default for Account {
             notify: true,
             profile: String::new(),
             disabled: false,
+            pending_copy: String::new(),
         }
     }
 }
@@ -501,10 +506,10 @@ impl Default for Settings {
             language: "vi".into(),
             sidebar_compact: false,
             sidebar_right: false,
-            sidebar_pos: "left".into(),
+            sidebar_pos: "top".into(),
             start_with_windows: false,
             close_to_tray: true,
-            share_processes: false,
+            share_processes: true,
             disable_gpu: false,
             notify: NotifySettings::default(),
             ai: AiSettings::default(),
@@ -541,7 +546,7 @@ impl Settings {
         s.sidebar_pos = match s.sidebar_pos.as_str() {
             "left" | "right" | "top" | "bottom" => s.sidebar_pos.clone(),
             _ if s.sidebar_right => "right".into(),
-            _ => "left".into(),
+            _ => "top".into(),
         };
         if s.archive_dir.as_os_str().is_empty() {
             s.archive_dir = documents.join("Mnemo").join("Archive");

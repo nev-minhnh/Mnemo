@@ -730,13 +730,13 @@ pub fn share_processes(
         s.share_processes = enabled;
         if enabled {
             crate::profiles::assign_all(&mut s);
+        } else {
+            crate::profiles::unshare_all(&mut s);
         }
         save(&state, &s)?;
     }
-    if enabled {
-        app.restart();
-    }
-    Ok(())
+    // The folders move at the next start, before any page opens.
+    app.restart();
 }
 
 #[tauri::command]

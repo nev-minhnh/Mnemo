@@ -597,12 +597,18 @@
   startObserver();
 
   // ---------- writing assistant ----------
-  let host = null, shadow = null, badge = null, lastEditable = null, idleTimer = null, lastChecked = '';
-  // In-place suggestions: underlines in the message box and a card on hover. They only ever
-  // come from the draft in that box; nothing else on the page is read or sent.
-  let marks = null, card = null, cardTimer = null, issues = [], issuesEl = null, shownIssue = null;
+  // Two buttons by the cursor in the message box: "M" opens the AI writing popup (rewrite,
+  // ask), the round checker checks the draft and opens the Writing assistant panel. Only
+  // the draft in the box is ever read or sent: never the conversation or anything else.
+  let host = null, shadow = null, pair = null, badge = null, checker = null;
+  let lastEditable = null, idleTimer = null, lastChecked = '';
+  let marks = null, glow = null, card = null, cardTimer = null, shownIssue = null;
+  let issues = [], issuesEl = null, result = null, busy = false, checkSeq = 0;
   const CAT_COLOR = { correctness: '#f03c45', clarity: '#1a8cf8', engagement: '#2bb86a', delivery: '#8b5cf6' };
-  const CAT_NAME = { correctness: 'Lỗi', clarity: 'Rõ ràng', engagement: 'Hấp dẫn', delivery: 'Giọng điệu' };
+  const CATS = ['correctness', 'clarity', 'engagement', 'delivery'];
+  const SVG_CHECK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17.5 7.6 6.5 11.2 17.5M5.3 13.6h4.6"/><path d="m13.5 13.8 2.6 2.7 4.7-6"/></svg>';
+  const esc2 = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
   function isEditable(el) {
     if (!el || el === host) return false;
     if (el.tagName === 'TEXTAREA') return true;
@@ -635,60 +641,159 @@
     return el.getBoundingClientRect();
   }
   function ensureBadge() {
-    if (badge) return;
+    if (pair) return;
     host = document.createElement('mnemo-assist');
     host.style.cssText = 'all:initial;position:fixed;z-index:2147483647;left:0;top:0;width:0;height:0;';
     shadow = host.attachShadow({ mode: 'closed' });
     try {
       const sheet = new CSSStyleSheet();
       sheet.replaceSync(`
-        button{all:unset;box-sizing:border-box;position:fixed;display:none;align-items:center;justify-content:center;
-          width:26px;height:26px;border-radius:13px;cursor:pointer;font:600 12px/1 "Segoe UI",system-ui,sans-serif;
-          color:#fff;background:linear-gradient(135deg,#5b5bf7,#9b5cf6);box-shadow:0 2px 8px rgba(30,20,90,.35);}
-        button:hover{transform:scale(1.08)}
-        button.busy{opacity:.7}
-        button.issues{background:linear-gradient(135deg,#e5484d,#f76b15)}
-        button.clean{background:linear-gradient(135deg,#12a594,#30a46c)}
-        .ul{position:fixed;height:2px;border-radius:1px;pointer-events:none;opacity:.9}
+        .pair{position:fixed;display:none;gap:6px;align-items:center;transition:opacity .16s ease,transform .16s ease;opacity:0;transform:translateY(4px)}
+        .pair.on{display:flex}.pair.in{opacity:1;transform:none}
+        .b{all:unset;box-sizing:border-box;position:relative;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:14px;
+          cursor:pointer;font:700 12px/1 "Segoe UI",system-ui,sans-serif;color:#fff;transition:transform .12s ease,box-shadow .12s ease}
+        .b:hover{transform:scale(1.08)}
+        .m{background:linear-gradient(135deg,#19d3ff,#2f6bff 40%,#9b4dff 70%,#ff5a9e);box-shadow:0 2px 10px rgba(80,60,200,.4)}
+        .c{background:#12151c;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+        .c::before{content:"";position:absolute;inset:0;border-radius:50%;padding:2.5px;background:var(--ring,conic-gradient(#19d3ff 0 100%));
+          -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+        .c.scan::before{background:conic-gradient(from 0deg,transparent 0 50%,#19d3ff 70%,#9b4dff 85%,#ff9a2e 100%);animation:spin .9s linear infinite}
+        .c.clean{color:#3fd29b}.c.clean::before{background:#3fd29b}
+        .c span{position:relative}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .ul{position:fixed;height:2px;border-radius:1px;pointer-events:none;transition:opacity .15s}
+        .hl{position:fixed;border-radius:3px;pointer-events:none;animation:hl 1.6s ease-out forwards}
+        @keyframes hl{0%{opacity:0;transform:scale(1.08)}15%{opacity:1;transform:none}75%{opacity:1}100%{opacity:.35}}
         .card{position:fixed;display:none;width:300px;box-sizing:border-box;padding:10px 12px;border-radius:12px;
-          font:13px/1.4 "Segoe UI",system-ui,sans-serif;color:#e8eefc;background:#0b1633;border:1px solid #1c2d58;
-          box-shadow:0 10px 30px rgba(0,0,0,.45);pointer-events:auto}
-        .card .t{display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:4px}
+          font:13px/1.45 "Segoe UI",system-ui,sans-serif;color:#eef1f7;background:#12151c;border:1px solid #252b39;
+          box-shadow:0 10px 30px rgba(0,0,0,.45);pointer-events:auto;opacity:0;transform:translateY(4px);transition:opacity .14s ease,transform .14s ease}
+        .card.in{opacity:1;transform:none}
+        .card .t{display:flex;align-items:center;gap:6px;color:#a9b0c1;font-size:12px;margin-bottom:4px}
         .card .d{display:inline-block;width:8px;height:8px;border-radius:50%}
-        .card del{color:#ff8a92}.card ins{color:#5fe0a6;text-decoration:none;font-weight:600}
-        .card .x{color:#a5b4d8;font-size:12px;margin-top:4px}
-        .card .a{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-        .card .a span{all:unset;cursor:pointer;padding:4px 10px;border-radius:7px;font-size:12px;background:#1a2c57;color:#e8eefc}
-        .card .a span:hover{background:#243a70}
-        .card .a span.ok{background:linear-gradient(135deg,#3d8bff,#38d0f5);color:#fff}`);
+        .card del{color:#ff8a92}
+        .card .fix{all:unset;cursor:pointer;color:#3fd29b;font-weight:700;border-radius:5px;padding:0 4px;margin-left:2px}
+        .card .fix:hover{background:rgba(63,210,155,.16);text-decoration:underline}
+        .card .x{color:#a9b0c1;font-size:12px;margin-top:4px}
+        .card .a{display:flex;gap:6px;margin-top:8px}
+        .card .a span{all:unset;cursor:pointer;padding:4px 10px;border-radius:7px;font-size:12px;background:#222836;color:#eef1f7}
+        .card .a span:hover{background:#2c3446}`);
       shadow.adoptedStyleSheets = [sheet];
     } catch (e) {}
-    badge = document.createElement('button');
-    badge.title = 'Mnemo – trợ lý viết (' + (runtime.hotkey || 'Ctrl+Shift+Space') + ')';
-    badge.textContent = 'M';
-    badge.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
-    badge.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openAssist(); });
-    shadow.appendChild(badge);
     marks = document.createElement('div');
-    shadow.appendChild(marks);
+    glow = document.createElement('div');
+    pair = document.createElement('div');
+    pair.className = 'pair';
+    badge = document.createElement('button');
+    badge.className = 'b m';
+    badge.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" opacity=".8"/></svg>';
+    badge.title = 'Mnemo – trợ lý AI: viết lại, hỏi AI (' + (runtime.hotkey || 'Ctrl+Shift+Space') + ')';
+    checker = document.createElement('button');
+    checker.className = 'b c';
+    checker.innerHTML = '<span>' + SVG_CHECK + '</span>';
+    checker.title = 'Kiểm tra chính tả, ngữ pháp, văn phong';
+    [badge, checker].forEach((b) => b.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); }));
+    badge.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openAssist(); });
+    checker.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openChecker(); });
+    pair.append(badge, checker);
     card = document.createElement('div');
     card.className = 'card';
     card.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
     card.addEventListener('mouseleave', () => hideCard(400));
     card.addEventListener('mouseenter', () => clearTimeout(cardTimer));
-    shadow.appendChild(card);
+    shadow.append(marks, glow, pair, card);
     document.documentElement.appendChild(host);
   }
   function placeBadge(el) {
     ensureBadge();
     const r = caretRect(el);
-    const x = Math.min(window.innerWidth - 32, Math.max(4, r.right + 8));
-    const y = Math.min(window.innerHeight - 32, Math.max(4, r.top - 30));
-    badge.style.left = x + 'px';
-    badge.style.top = y + 'px';
-    badge.style.display = 'flex';
+    const x = Math.min(window.innerWidth - 70, Math.max(4, r.right + 8));
+    const y = Math.min(window.innerHeight - 32, Math.max(4, r.top - 32));
+    pair.style.left = x + 'px';
+    pair.style.top = y + 'px';
+    if (!pair.classList.contains('on')) {
+      pair.classList.add('on');
+      requestAnimationFrame(() => pair.classList.add('in'));
+    }
   }
-  function hideBadge() { if (badge) { badge.style.display = 'none'; badge.className = ''; badge.textContent = 'M'; } }
+  function hideBadge() { if (pair) pair.classList.remove('on', 'in'); }
+
+  // The checker shows: scanning (a turning ring), the number of suggestions with a ring
+  // split by category colour, or a green tick.
+  function paintChecker() {
+    if (!checker) return;
+    checker.classList.remove('scan', 'clean');
+    checker.style.removeProperty('--ring');
+    if (busy) {
+      checker.classList.add('scan');
+      checker.innerHTML = '<span>' + SVG_CHECK + '</span>';
+      checker.title = 'Đang kiểm tra…';
+      return;
+    }
+    if (!result) { checker.innerHTML = '<span>' + SVG_CHECK + '</span>'; checker.title = 'Kiểm tra chính tả, ngữ pháp, văn phong'; return; }
+    if (!issues.length) { checker.classList.add('clean'); checker.innerHTML = '<span>✓</span>'; checker.title = 'Không thấy lỗi'; return; }
+    const counts = CATS.map((c) => issues.filter((i) => i.category === c).length);
+    let at = 0;
+    const parts = [];
+    CATS.forEach((c, n) => {
+      if (!counts[n]) return;
+      const end = at + (counts[n] / issues.length) * 100;
+      parts.push(`${CAT_COLOR[c]} ${at}% ${end}%`);
+      at = end;
+    });
+    checker.style.setProperty('--ring', `conic-gradient(${parts.join(',')})`);
+    checker.innerHTML = '<span>' + Math.min(issues.length, 99) + '</span>';
+    checker.title = issues.length + ' gợi ý' + (result.score != null ? ' · điểm ' + result.score : '') + ' – bấm để mở Trợ lý viết';
+  }
+
+  // Tells Mnemo (the Writing assistant panel) what this draft looks like now.
+  function report(open) {
+    const el = issuesEl || lastEditable;
+    invoke('mnemo_writing', {
+      draft: {
+        text: el ? editableText(el).slice(0, 20000) : '',
+        busy,
+        score: result ? result.score : null,
+        tone: result ? result.tone || '' : '',
+        toneFits: result ? result.tone_fits !== false : true,
+        issues: issues.map((i) => ({ category: i.category, title: i.title, original: i.original, replacement: i.replacement, explanation: i.explanation })),
+      },
+      open: !!open,
+    }).catch(() => {});
+  }
+
+  function runCheck(el, text, force, openAfter) {
+    const seq = ++checkSeq;
+    busy = true;
+    lastChecked = text;
+    paintChecker();
+    report(openAfter);
+    invoke('mnemo_assist_check', { text: text.slice(0, 20000), force: !!force }).then((res) => {
+      if (seq !== checkSeq) return;
+      busy = false;
+      if (editableText(el) !== text) { paintChecker(); return; }
+      result = res || { issues: [] };
+      issues = Array.isArray(result.issues) ? result.issues.slice() : [];
+      issuesEl = el;
+      paintChecker();
+      drawMarks();
+      report(false);
+    }).catch((e) => {
+      if (seq !== checkSeq) return;
+      busy = false;
+      paintChecker();
+      report(false);
+      log('check: ' + e);
+    });
+  }
+
+  function openChecker() {
+    const el = lastEditable;
+    if (!el) return;
+    const text = editableText(el);
+    if (!text.trim()) return;
+    if (busy || (result && text === lastChecked)) { report(true); return; }
+    runCheck(el, text, true, true);
+  }
 
   function openAssist() {
     const el = lastEditable;
@@ -696,7 +801,6 @@
     const text = editableText(el);
     if (!text.trim()) return;
     const r = caretRect(el);
-    hideBadge();
     invoke('mnemo_assist_open', {
       text: text.slice(0, 20000),
       rect: { x: r.left, y: r.top, width: r.width, height: r.height },
@@ -706,33 +810,18 @@
 
   function onTyping() {
     const el = editableRoot(document.activeElement);
-    if (!isEditable(el)) { return; }
+    if (!isEditable(el)) return;
     lastEditable = el;
-    hideBadge();
-    clearMarks();
+    // The text changed: old suggestions no longer line up with it.
+    if (issues.length || result) { issues = []; result = null; if (marks) marks.innerHTML = ''; hideCard(0); paintChecker(); report(false); }
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       if (!runtime.assist) return;
       const text = editableText(el);
-      if (text.trim().length < 3 || document.activeElement !== el && !el.contains(document.activeElement)) return;
+      if (text.trim().length < 3 || (document.activeElement !== el && !el.contains(document.activeElement))) return;
       placeBadge(el);
-      if (runtime.autoCheck && text !== lastChecked) {
-        lastChecked = text;
-        badge.className = 'busy';
-        badge.textContent = '…';
-        invoke('mnemo_assist_check', { text: text.slice(0, 20000) }).then((res) => {
-          if (editableText(el) !== text) return;
-          const list = (res && Array.isArray(res.issues)) ? res.issues : [];
-          const n = list.length;
-          badge.className = n ? 'issues' : 'clean';
-          badge.textContent = n ? String(Math.min(n, 99)) : '✓';
-          badge.title = (n ? n + ' gợi ý' : 'Không thấy lỗi') + (res && res.score != null ? ' · điểm ' + res.score : '') + ' – bấm để mở trợ lý viết';
-          issues = list;
-          issuesEl = el;
-          drawMarks();
-        }).catch(() => { badge.className = ''; badge.textContent = 'M'; });
-      }
-    }, 1200);
+      if (runtime.autoCheck && text !== lastChecked) runCheck(el, text, false, false);
+    }, 900);
   }
   document.addEventListener('input', onTyping, true);
   document.addEventListener('focusout', () => setTimeout(() => {
@@ -746,7 +835,7 @@
     }
   }, true);
 
-  // ---------- underlines and the suggestion card ----------
+  // ---------- underlines, highlight and the suggestion card ----------
   function textNodes(root) {
     const out = [];
     const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -760,76 +849,102 @@
     const nodes = textNodes(root);
     let full = '';
     const starts = [];
-    nodes.forEach((n) => { starts.push(full.length); full += n.nodeValue.replace(/\u00a0/g, ' '); });
-    const at = full.indexOf(needle.replace(/\u00a0/g, ' '));
+    nodes.forEach((n) => { starts.push(full.length); full += n.nodeValue.replace(/ /g, ' '); });
+    const at = full.indexOf(needle.replace(/ /g, ' '));
     if (at < 0) return null;
     const end = at + needle.length;
     // Start: the node holding character `off`; end: the node holding the character before it.
     const pos = (off, isEnd) => {
       for (let i = 0; i < nodes.length; i++) {
         const len = nodes[i].nodeValue.length;
-        if (isEnd ? off > starts[i] && off <= starts[i] + len : off >= starts[i] && off < starts[i] + len) {
-          return [nodes[i], off - starts[i]];
-        }
+        if (isEnd ? off > starts[i] && off <= starts[i] + len : off >= starts[i] && off < starts[i] + len) return [nodes[i], off - starts[i]];
       }
       return null;
     };
-    const r = document.createRange();
     const a = pos(at, false), b = pos(end, true);
     if (!a || !b) return null;
+    const r = document.createRange();
     try { r.setStart(a[0], a[1]); r.setEnd(b[0], b[1]); } catch (e) { return null; }
     return r;
   }
-  function clearMarks() {
-    issues = [];
-    if (marks) marks.innerHTML = '';
-    hideCard(0);
-  }
+  let drawQueued = false;
   function drawMarks() {
-    if (!marks) return;
-    marks.innerHTML = '';
-    if (!issuesEl || !document.contains(issuesEl)) return;
-    const box = issuesEl.getBoundingClientRect();
-    issues.forEach((it, idx) => {
-      const r = rangeOf(issuesEl, it.original);
-      if (!r) return;
-      it._rects = Array.from(r.getClientRects()).filter((c) => c.width > 0);
-      it._rects.forEach((c) => {
-        if (c.bottom < box.top - 2 || c.top > box.bottom + 2) return;
-        const u = document.createElement('div');
-        u.className = 'ul';
-        u.style.cssText = `left:${c.left}px;top:${c.bottom - 1}px;width:${c.width}px;background:${CAT_COLOR[it.category] || '#f03c45'}`;
-        u.dataset.i = idx;
-        marks.appendChild(u);
-      });
+    if (drawQueued) return;
+    drawQueued = true;
+    requestAnimationFrame(() => {
+      drawQueued = false;
+      if (!marks) return;
+      const frag = document.createDocumentFragment();
+      if (issuesEl && document.contains(issuesEl)) {
+        const box = issuesEl.getBoundingClientRect();
+        issues.forEach((it) => {
+          const r = rangeOf(issuesEl, it.original);
+          it._rects = r ? Array.from(r.getClientRects()).filter((c) => c.width > 0) : [];
+          it._rects.forEach((c) => {
+            if (c.bottom < box.top - 2 || c.top > box.bottom + 2) return;
+            const u = document.createElement('div');
+            u.className = 'ul';
+            u.style.cssText = `left:${c.left}px;top:${c.bottom - 1}px;width:${c.width}px;background:${CAT_COLOR[it.category] || CAT_COLOR.correctness}`;
+            frag.appendChild(u);
+          });
+        });
+      }
+      marks.replaceChildren(frag);
     });
+  }
+  function highlight(it) {
+    if (!glow || !issuesEl) return;
+    const r = rangeOf(issuesEl, it.original);
+    if (!r) return;
+    const rects = Array.from(r.getClientRects()).filter((c) => c.width > 0);
+    if (rects.length) {
+      const first = rects[0];
+      const box = issuesEl.getBoundingClientRect();
+      if (first.top < box.top || first.bottom > box.bottom) {
+        const sc = issuesEl.closest('[style*="overflow"], .scrollable') || issuesEl;
+        sc.scrollTop += first.top - box.top - box.height / 3;
+        return setTimeout(() => highlight(it), 60);
+      }
+    }
+    const color = CAT_COLOR[it.category] || CAT_COLOR.correctness;
+    glow.replaceChildren(...rects.map((c) => {
+      const d = document.createElement('div');
+      d.className = 'hl';
+      d.style.cssText = `left:${c.left - 2}px;top:${c.top - 1}px;width:${c.width + 4}px;height:${c.height + 2}px;background:${color}33;box-shadow:0 0 0 1.5px ${color}`;
+      return d;
+    }));
+    clearTimeout(highlight.t);
+    highlight.t = setTimeout(() => glow.replaceChildren(), 4000);
   }
   function hideCard(delay) {
     clearTimeout(cardTimer);
-    cardTimer = setTimeout(() => { if (card) card.style.display = 'none'; shownIssue = null; }, delay);
+    cardTimer = setTimeout(() => { if (card) card.classList.remove('in'); setTimeout(() => { if (card && !card.classList.contains('in')) card.style.display = 'none'; }, 150); shownIssue = null; }, delay);
   }
   function showCard(it, rect) {
     clearTimeout(cardTimer);
-    if (shownIssue === it && card.style.display === 'block') return;
+    if (shownIssue === it && card.classList.contains('in')) return;
     shownIssue = it;
-    const color = CAT_COLOR[it.category] || '#f03c45';
-    const e = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    card.innerHTML = `<div class="t"><span class="d" style="background:${color}"></span>${e(it.title || CAT_NAME[it.category] || '')}</div>
-      <div><del>${e(it.original)}</del> → <ins>${it.replacement ? e(it.replacement) : '(xóa)'}</ins></div>
-      ${it.explanation ? `<div class="x">${e(it.explanation)}</div>` : ''}
-      <div class="a"><span class="ok" data-a="accept">Chấp nhận</span><span data-a="dismiss">Bỏ qua</span><span data-a="learn">Thêm vào từ điển</span></div>`;
+    const color = CAT_COLOR[it.category] || CAT_COLOR.correctness;
+    card.innerHTML = `<div class="t"><span class="d" style="background:${color}"></span>${esc2(it.title || '')}</div>
+      <div><del>${esc2(it.original)}</del> → <button class="fix" title="Bấm để nhận gợi ý">${it.replacement ? esc2(it.replacement) : '(xóa)'}</button></div>
+      ${it.explanation ? `<div class="x">${esc2(it.explanation)}</div>` : ''}
+      <div class="a"><span data-a="dismiss">Bỏ qua</span><span data-a="learn">Thêm vào từ điển</span></div>`;
+    card.querySelector('.fix').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); act(it, 'accept'); });
     card.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); act(it, b.dataset.a); }));
     card.style.display = 'block';
     const w = 300, h = card.offsetHeight || 120;
-    let x = Math.min(window.innerWidth - w - 8, Math.max(8, rect.left));
+    const x = Math.min(window.innerWidth - w - 8, Math.max(8, rect.left));
     let y = rect.top - h - 8;
     if (y < 8) y = rect.bottom + 8;
     card.style.left = x + 'px';
     card.style.top = y + 'px';
+    requestAnimationFrame(() => card.classList.add('in'));
   }
   function act(it, what) {
     const el = issuesEl;
     hideCard(0);
+    if (!it) return;
+    const keep = issues.filter((x) => x !== it && x.original !== it.original);
     if (what === 'learn') invoke('mnemo_assist_learn', { word: it.original }).catch(() => {});
     if (what === 'accept' && el && document.contains(el)) {
       const r = rangeOf(el, it.original);
@@ -845,40 +960,48 @@
         }
       }
     }
-    // Typing cleared the list; keep the other suggestions on screen.
-    const rest = (what === 'accept' ? issuesCopy : issues).filter((x) => x !== it && x.original !== it.original);
-    issues = rest;
-    issuesEl = el;
-    lastChecked = editableText(el);
+    // Accepting typed into the box, which cleared the list: put the rest back.
     clearTimeout(idleTimer);
-    drawMarks();
+    issues = keep;
+    issuesEl = el;
+    if (result) result.issues = keep;
+    else result = { issues: keep };
+    lastChecked = el ? editableText(el) : lastChecked;
     if (el && document.contains(el)) placeBadge(el);
-    if (badge) {
-      badge.className = rest.length ? 'issues' : 'clean';
-      badge.textContent = rest.length ? String(rest.length) : '✓';
-    }
+    paintChecker();
+    drawMarks();
+    report(false);
   }
-  let issuesCopy = [];
   document.addEventListener('mousemove', (e) => {
     if (!issues.length || !card) return;
-    if (card.style.display === 'block') {
+    if (card.classList.contains('in')) {
       const r = card.getBoundingClientRect();
       if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return;
     }
     for (const it of issues) {
       for (const c of it._rects || []) {
-        if (e.clientX >= c.left - 1 && e.clientX <= c.right + 1 && e.clientY >= c.top - 2 && e.clientY <= c.bottom + 3) {
-          issuesCopy = issues.slice();
-          showCard(it, c);
-          return;
-        }
+        if (e.clientX >= c.left - 1 && e.clientX <= c.right + 1 && e.clientY >= c.top - 2 && e.clientY <= c.bottom + 3) { showCard(it, c); return; }
       }
     }
     if (shownIssue) hideCard(500);
   }, true);
-  const redraw = () => { if (issues.length) drawMarks(); };
+  const redraw = () => { if (issues.length) drawMarks(); if (glow) glow.replaceChildren(); };
   window.addEventListener('scroll', redraw, true);
   window.addEventListener('resize', redraw);
+
+  // Called by Mnemo's Writing assistant panel.
+  window.__MNEMO_ISSUE__ = function (what, original) {
+    if (what === 'recheck') {
+      const el = issuesEl || lastEditable;
+      if (el && document.contains(el)) { const t = editableText(el); if (t.trim()) runCheck(el, t, true, false); }
+      return;
+    }
+    if (what === 'refresh') { refreshRuntime(); report(false); return; }
+    const it = issues.find((x) => x.original === original);
+    if (!it) return;
+    if (what === 'focus') highlight(it);
+    else act(it, what);
+  };
 
   function composeTarget() {
     if (lastEditable && document.contains(lastEditable)) return lastEditable;
@@ -917,6 +1040,9 @@
       el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
     }
     lastChecked = '';
+    issues = []; result = null;
+    if (marks) marks.innerHTML = '';
+    paintChecker();
     return true;
   };
 })();

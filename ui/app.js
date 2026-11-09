@@ -5,6 +5,7 @@ let S = null;               // state from get_state
 let page = 'home';          // home | archive | media | import | settings | account:<id>
 let visible = null;         // account id shown in the content area
 let panelOpen = false;
+let pickerOpen = false;
 const archive = { service: '', q: '', chats: [], chatId: null, chat: null, messages: [], hits: null, search: '', around: null };
 const importState = { running: false, progress: null, report: null, error: null };
 
@@ -38,7 +39,7 @@ function avatarHtml(a, size) {
 
 function barPos() {
   const p = S && S.settings.sidebar_pos;
-  return ['left', 'right', 'top', 'bottom'].includes(p) ? p : 'left';
+  return ['left', 'right', 'top', 'bottom'].includes(p) ? p : 'top';
 }
 function barHorizontal() { const p = barPos(); return p === 'top' || p === 'bottom'; }
 // The bar's thickness: width on the left/right, height on the top/bottom.
@@ -65,7 +66,7 @@ function renderSidebar() {
   const nav = (id, icon, label, extra) =>
     `<button class="side-item ${extra || ''} ${!visible && page === id ? 'active' : ''}" data-page="${id}" title="${label}">${ICON[icon]}<span class="side-label">${label}</span></button>`;
   // On a horizontal bar the add button stays outside the scrolling row, always in view.
-  const addBtn = `<button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>`;
+  const addBtn = `<button class="acc-row add${pickerOpen ? ' on' : ''}" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>`;
   const total = activeAccounts().reduce((n, a) => n + ((S.unread || {})[a.id] || 0), 0);
   sb.innerHTML = `
     <div class="side-head">
@@ -87,7 +88,7 @@ function renderSidebar() {
     ${barHorizontal() ? `<div class="add-fixed">${addBtn}</div>` : ''}
     <div class="side-nav">
       <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${barHorizontal() ? (compact ? '»' : '«') : (compact !== (barPos() === 'right') ? '›' : '‹')}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
-      ${`<button class="side-item ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
+      ${`<button class="side-item ${panelOpen && panel.mode !== 'writing' ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
       ${nav('archive', 'archive', 'Kho tin nhắn')}
       ${nav('media', 'media', 'Tệp đã lưu')}
       ${nav('import', 'import', 'Nhập tệp xuất')}
@@ -99,7 +100,11 @@ function renderSidebar() {
     b.addEventListener('pointerdown', (e) => startReorder(e, b));
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); openPage('account:' + b.dataset.acc); });
   });
-  sb.querySelector('[data-panel]').addEventListener('click', () => togglePanel());
+  sb.querySelector('[data-panel]').addEventListener('click', () => {
+    if (panelOpen && panel.mode === 'writing') { panel.mode = 'ai'; renderPanel(); renderSidebar(); return; }
+    panel.mode = 'ai';
+    togglePanel();
+  });
   sb.querySelector('[data-add]').addEventListener('click', (e) => {
     // A popover next to the + button, over whatever is open (no trip to the home page).
     const r = e.currentTarget.getBoundingClientRect();
@@ -121,29 +126,24 @@ function renderSidebar() {
 // ---------------------------------------------------------------- memory: shared browser processes
 // Mirrors profiles.rs: groups shared-0, shared-1… hold at most one account per app; the
 // first account of a group keeps its sign-in, the others sign in once more.
-function memoryShareHtml(s) {
+function memoryShareHtml() {
   const accs = accounts();
   const own = accs.filter((a) => !a.profile);
-  if (!own.length && s.share_processes) {
-    const groups = new Set(accs.map((a) => a.profile)).size;
-    return `<span class="badge ok">Đang gộp · ${accs.length} tài khoản chạy trong ${groups} bộ trình duyệt</span>`;
-  }
-  const taken = new Map(); // profile → services in it
+  const taken = new Map(); // folder → apps in it
   accs.filter((a) => a.profile).forEach((a) => { if (!taken.has(a.profile)) taken.set(a.profile, new Set()); taken.get(a.profile).add(a.service); });
   const relogin = [];
-  const firstIn = new Map();
+  const firstIn = new Set();
   for (const a of own) {
     let n = 0;
     while (taken.has('shared-' + n) && taken.get('shared-' + n).has(a.service)) n++;
     const g = 'shared-' + n;
+    const existed = taken.has(g) && taken.get(g).size > 0;
     if (!taken.has(g)) taken.set(g, new Set());
     taken.get(g).add(a.service);
-    if (firstIn.has(g) || accs.some((b) => b.profile === g)) relogin.push(a); else firstIn.set(g, a);
+    if (existed || firstIn.has(g)) relogin.push(a); else firstIn.add(g);
   }
-  const groups = taken.size;
-  return `<div class="small">Hiện ${accs.length} tài khoản chạy ${own.length + new Set(accs.filter((a) => a.profile).map((a) => a.profile)).size} bộ trình duyệt; gộp xong còn <b>${groups}</b>.</div>
-    ${relogin.length ? `<div class="notice warn small">Sau khi gộp, các tài khoản này phải đăng nhập lại một lần: <b data-noi18n>${relogin.map((a) => esc(`${SERVICE_NAME[a.service]} · ${a.label}`)).join(', ')}</b>. Tài khoản còn lại giữ nguyên đăng nhập. Muốn giữ tài khoản nào thì kéo nó lên đầu thanh bên trước khi gộp.</div>` : ''}
-    <div><button class="btn primary sm" id="share-now">Gộp ngay và khởi động lại</button></div>`;
+  return `<div>Gộp xong, ${accs.length} tài khoản chạy trong <b>${new Set([...taken.keys()]).size}</b> bộ trình duyệt.</div>
+    ${relogin.length ? `<div>Các tài khoản này phải đăng nhập lại một lần: <b data-noi18n>${relogin.map((a) => esc(`${SERVICE_NAME[a.service]} · ${a.label}`)).join(', ')}</b>. Muốn giữ tài khoản nào thì kéo nó lên đầu thanh Mnemo trước.</div>` : ''}`;
 }
 
 // ---------------------------------------------------------------- drag to reorder accounts
@@ -262,7 +262,18 @@ async function showAccount(id) {
   } catch (e) { toast(errText(e), true); }
 }
 
+// A short entrance for a new page or panel (not for refreshes of the same one).
+function enter(node) {
+  if (!node) return;
+  node.classList.remove('enter');
+  void node.offsetWidth;
+  node.classList.add('enter');
+  clearTimeout(node._enterT);
+  node._enterT = setTimeout(() => node.classList.remove('enter'), 400);
+}
+
 async function openPage(p, scrollToAdd) {
+  enter($('#main'));
   await invoke('show_page');
   visible = null;
   page = p;
@@ -740,7 +751,7 @@ async function renderSettings(main) {
 
     <div class="section"><h2>Bộ nhớ (RAM)</h2><div class="card pad"><div class="form">
       <span class="label">Dùng chung tiến trình trình duyệt</span>
-      <div class="col">${memoryShareHtml(s)}</div>
+      <div class="col"><label class="check"><span class="switch"><input type="checkbox" id="share" ${s.share_processes ? 'checked' : ''}><span></span></span>Bật</label><div id="share-note"></div></div>
       <span class="hint">Mỗi tài khoản mặc định chạy một bộ trình duyệt riêng (GPU, mạng, lưu trữ…), mất vài trăm MB mỗi bộ. Khi gộp, các tài khoản của các ứng dụng khác nhau chạy chung một bộ; hai tài khoản của cùng một ứng dụng vẫn tách riêng. Tin nhắn, cài đặt và tệp không bị ảnh hưởng.</span>
       <span class="label">Tắt tăng tốc phần cứng (GPU)</span><label class="check"><span class="switch"><input type="checkbox" id="nogpu" ${s.disable_gpu ? 'checked' : ''}><span></span></span>Bật</label>
       <span class="hint">Bớt thêm vài trăm MB của tiến trình GPU; cuộn trang và gọi video có thể kém mượt hơn. Có hiệu lực sau khi khởi động lại Mnemo.</span>
@@ -763,14 +774,17 @@ async function renderSettings(main) {
     </div></div>
   </div>`;
 
-  const share = $('#share-now');
-  if (share) share.addEventListener('click', async () => {
-    share.disabled = true;
-    try { await invoke('share_processes', { enabled: true }); } catch (e) { share.disabled = false; toast(errText(e), true); }
-  });
-  const unshare = $('#share-off');
-  if (unshare) unshare.addEventListener('change', async () => {
-    try { await invoke('share_processes', { enabled: unshare.checked }); S.settings.share_processes = unshare.checked; } catch (e) { toast(errText(e), true); }
+  // Sharing moves the browser folders, which happens at the next start: say what changes, then restart.
+  $('#share').addEventListener('change', (e) => {
+    const on = e.target.checked;
+    const note = $('#share-note');
+    if (on === !!s.share_processes) { note.innerHTML = ''; return; }
+    note.innerHTML = `<div class="notice warn small col" style="gap:8px;margin-top:6px">${on ? memoryShareHtml() : '<div>Mỗi tài khoản sẽ có lại bộ trình duyệt riêng, sao chép từ bộ chung nên vẫn giữ đăng nhập. Dùng nhiều RAM hơn.</div>'}
+      <div><button class="btn sm primary" id="share-apply">Khởi động lại để áp dụng</button></div></div>`;
+    $('#share-apply').addEventListener('click', async (ev) => {
+      ev.currentTarget.disabled = true;
+      try { await invoke('share_processes', { enabled: on }); } catch (err) { toast(errText(err), true); ev.currentTarget.disabled = false; }
+    });
   });
   $('#nogpu').addEventListener('change', async (e) => {
     s.disable_gpu = e.target.checked;
@@ -1032,6 +1046,7 @@ async function togglePanel(force) {
   panelOpen = force === undefined ? !panelOpen : force;
   $('#app').classList.toggle('panel', panelOpen);
   $('#panel').classList.toggle('hidden', !panelOpen);
+  if (panelOpen) enter($('#panel'));
   await syncLayout();
   renderSidebar();
   if (panelOpen) renderPanel();
@@ -1054,6 +1069,8 @@ function toLocalInput(ms) {
 async function renderPanel() {
   const box = $('#panel');
   if (!panelOpen || !S) return;
+  // The slot holds either the Writing assistant or the AI assistant.
+  if (panel.mode === 'writing') return renderWriting(box);
   const target = await panelTarget();
   if (!panel.chat || !target.chat || panel.chat.id !== target.chat.id) { panel.result = null; panel.replies = null; panel.error = null; }
   panel.chat = target.chat;
@@ -1242,6 +1259,13 @@ async function start() {
   listen('accounts', async () => {
     await refresh();
     if (page === 'home' && !visible) renderMain();
+  });
+  // The + button stays "on" (gold) while the Add account popover is open.
+  listen('writing-open', (e) => openWriting(e.payload));
+  listen('writing', (e) => writingUpdate(e.payload));
+  listen('picker', (e) => {
+    pickerOpen = !!e.payload;
+    document.querySelectorAll('.acc-row.add').forEach((b) => b.classList.toggle('on', pickerOpen));
   });
   listen('icons', (e) => {
     window.SVC_ICONS = e.payload || {};

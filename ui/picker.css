@@ -1,0 +1,29 @@
+/* picker window. Kept out of the HTML: an inline <style> makes Tauri add a hash to the
+   CSP, which turns off inline style attributes (the icon sizes) in this window. */
+html, body { background: transparent !important; overflow: hidden; height: 100%; }
+body { padding: 10px; }
+.pop { position: relative; height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px;
+  border-radius: 14px; border: 1px solid rgba(255, 255, 255, .1);
+  background: radial-gradient(120% 120% at 0% 0%, rgba(25, 211, 255, .08), transparent 55%), linear-gradient(160deg, var(--surface), var(--bg));
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .45), 0 0 0 1px rgba(225, 75, 216, .06) inset; animation: pop .14s ease-out; }
+@keyframes pop { from { opacity: 0; transform: scale(.97); } }
+.arrow { position: absolute; width: 14px; height: 14px; background: var(--surface); border: 1px solid rgba(255, 255, 255, .1); transform: rotate(45deg); }
+.side-left .arrow { left: -8px; border-right: 0; border-top: 0; }
+.side-right .arrow { right: -8px; border-left: 0; border-bottom: 0; }
+.side-top .arrow { top: -8px; border-right: 0; border-bottom: 0; }
+.side-bottom .arrow { bottom: -8px; border-left: 0; border-top: 0; }
+.head { display: flex; align-items: center; gap: 8px; }
+.head h2 { flex: 1; font-size: 15px; }
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 4px 10px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface-2); cursor: pointer; font-weight: 600; font-size: 12.5px; transition: border-color .12s, box-shadow .12s, transform .12s; }
+.tile:hover, .tile:focus-visible { border-color: var(--accent-2); box-shadow: 0 4px 18px var(--glow); transform: translateY(-1px); outline: none; }
+.tile span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.step2 { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+.opts { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.opt { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.opt:has(input:checked) { border-color: var(--gold-2); background: var(--gold-soft); }
+.opt input { accent-color: var(--gold-2); }
+.foot { margin-top: auto; display: flex; justify-content: flex-end; gap: 8px; }
+.hint { font-size: 12px; color: var(--text-3); }
+  

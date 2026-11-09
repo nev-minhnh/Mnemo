@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-writing"
+description = "Enables the mnemo_writing command without any pre-configured scope."
+commands.allow = ["mnemo_writing"]
+
+[[permission]]
+identifier = "deny-mnemo-writing"
+description = "Denies the mnemo_writing command without any pre-configured scope."
+commands.deny = ["mnemo_writing"]

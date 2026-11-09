@@ -113,9 +113,7 @@ pub fn memory_level(wv: &Webview, low: bool) {
 pub fn park(app: &AppHandle, wv: &Webview) {
     if let Some(window) = app.get_window(MAIN) {
         let (_, size) = account_rect(app, &window);
-        let _ = wv.set_size(size);
-        let _ = wv.set_position(parked(&size));
-        memory_level(wv, true);
+        place(wv, parked(&size), size, true);
     }
 }
 
@@ -126,8 +124,7 @@ pub fn layout(app: &AppHandle) {
     };
     let (w, h) = inner_logical(&window);
     if let Some(shell) = app.get_webview(SHELL) {
-        let _ = shell.set_position(LogicalPosition::new(0.0, 0.0));
-        let _ = shell.set_size(LogicalSize::new(w, h));
+        place(&shell, LogicalPosition::new(0.0, 0.0), LogicalSize::new(w, h), false);
     }
     let visible = lock(&app.state::<AppState>().visible)
         .as_deref()
@@ -145,14 +142,56 @@ pub fn layout(app: &AppHandle) {
             .strip_prefix("acc-")
             .and_then(|id| lock(&app.state::<AppState>().crop_top).get(id).copied())
             .unwrap_or(0.0);
-        let _ = wv.set_size(LogicalSize::new(size.width, size.height + crop));
         let shown = visible.as_deref() == Some(wv.label());
-        if shown {
-            let _ = wv.set_position(LogicalPosition::new(pos.x, pos.y - crop));
+        let at = if shown {
+            LogicalPosition::new(pos.x, pos.y - crop)
         } else {
-            let _ = wv.set_position(parked(&size));
-        }
-        memory_level(wv, away || !shown);
+            parked(&size)
+        };
+        place(
+            wv,
+            at,
+            LogicalSize::new(size.width, size.height + crop),
+            away || !shown,
+        );
+    }
+}
+
+/// Last place, size and memory level given to each page. Moving or resizing a WebView2 makes
+/// its page lay out again, so nothing is sent when nothing changed (layout runs on every
+/// focus and resize of the window).
+static PLACED: std::sync::Mutex<Option<std::collections::HashMap<String, [i64; 5]>>> =
+    std::sync::Mutex::new(None);
+
+fn place(wv: &Webview, at: LogicalPosition<f64>, size: LogicalSize<f64>, low: bool) {
+    let key = [
+        at.x.round() as i64,
+        at.y.round() as i64,
+        size.width.round() as i64,
+        size.height.round() as i64,
+        low as i64,
+    ];
+    let mut g = PLACED.lock().unwrap_or_else(|e| e.into_inner());
+    let before = g
+        .get_or_insert_with(std::collections::HashMap::new)
+        .insert(wv.label().to_string(), key);
+    drop(g);
+    let before = before.unwrap_or([i64::MIN; 5]);
+    if before[2..4] != key[2..4] {
+        let _ = wv.set_size(size);
+    }
+    if before[0..2] != key[0..2] {
+        let _ = wv.set_position(at);
+    }
+    if before[4] != key[4] {
+        memory_level(wv, low);
+    }
+}
+
+/// A page that was closed (or recreated) has no remembered place.
+pub fn forget_place(label: &str) {
+    if let Some(m) = PLACED.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        m.remove(label);
     }
 }
 
@@ -291,6 +330,8 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     if let Some(w) = app.get_webview(&label) {
         return Ok(w);
     }
+    // A new page: whatever was remembered for an earlier one with this label is stale.
+    forget_place(&label);
     let state = app.state::<AppState>();
     let def = services::def(account.service);
     let page_cfg = services::page_config(&state.config_dir, account.service);
@@ -415,6 +456,7 @@ pub fn close_account(app: &AppHandle, account_id: &str) {
     if let Some(wv) = app.get_webview(&label_for(account_id)) {
         let _ = wv.close();
     }
+    forget_place(&label_for(account_id));
     let state = app.state::<AppState>();
     let mut visible = lock(&state.visible);
     if visible.as_deref() == Some(account_id) {
@@ -496,6 +538,14 @@ const PICKER_W: f64 = 584.0;
 const PICKER_H: f64 = 330.0;
 /// Where the popover was last placed (its page asks when it first loads).
 static PICKER_PLACE: std::sync::Mutex<Option<serde_json::Value>> = std::sync::Mutex::new(None);
+/// When the popover last closed: clicking + while it is open first takes the focus away
+/// (which closes it), and that same click must not open it again.
+static PICKER_CLOSED: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
+fn picker_hidden(app: &AppHandle) {
+    *PICKER_CLOSED.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+    let _ = app.emit_to(SHELL, "picker", false);
+}
 
 #[derive(serde::Deserialize, Clone, Copy, Debug)]
 pub struct ButtonRect {
@@ -510,6 +560,21 @@ pub struct ButtonRect {
 #[tauri::command]
 pub async fn open_picker(app: AppHandle, rect: ButtonRect) -> Result<(), String> {
     let window = app.get_window(MAIN).ok_or("no main window")?;
+    // The + button toggles: a second click closes the popover.
+    if let Some(p) = app.get_webview_window(PICKER) {
+        if p.is_visible().unwrap_or(false) {
+            let _ = p.hide();
+            picker_hidden(&app);
+            return Ok(());
+        }
+    }
+    let just_closed = PICKER_CLOSED
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some_and(|t| t.elapsed() < std::time::Duration::from_millis(350));
+    if just_closed {
+        return Ok(());
+    }
     let picker = match app.get_webview_window(PICKER) {
         Some(p) => p,
         None => {
@@ -533,7 +598,10 @@ pub async fn open_picker(app: AppHandle, rect: ButtonRect) -> Result<(), String>
             p.on_window_event(move |e| {
                 if let tauri::WindowEvent::Focused(false) = e {
                     if let Some(w) = handle.get_webview_window(PICKER) {
-                        let _ = w.hide();
+                        if w.is_visible().unwrap_or(false) {
+                            let _ = w.hide();
+                            picker_hidden(&handle);
+                        }
                     }
                 }
             });
@@ -574,6 +642,7 @@ pub async fn open_picker(app: AppHandle, rect: ButtonRect) -> Result<(), String>
     let _ = app.emit_to(PICKER, "picker-open", place);
     let _ = picker.show();
     let _ = picker.set_focus();
+    let _ = app.emit_to(SHELL, "picker", true);
     Ok(())
 }
 
@@ -603,6 +672,7 @@ pub fn picker_state(state: tauri::State<'_, AppState>) -> serde_json::Value {
 pub fn picker_close(app: AppHandle) {
     if let Some(w) = app.get_webview_window(PICKER) {
         let _ = w.hide();
+        picker_hidden(&app);
     }
 }
 

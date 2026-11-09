@@ -61,6 +61,12 @@
     "allow-share-processes",
     "allow-restart-app",
     "allow-set-account-enabled",
-    "allow-open-picker"
+    "allow-open-picker",
+    "allow-writing-state",
+    "allow-writing-action",
+    "allow-writing-apply",
+    "allow-set-auto-check",
+    "allow-assist-learn",
+    "allow-assist-save-goals"
   ]
 }

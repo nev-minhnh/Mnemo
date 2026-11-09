@@ -1,0 +1,33 @@
+/* assist window. Kept out of the HTML: an inline <style> makes Tauri add a hash to the
+   CSP, which turns off inline style attributes (the icon sizes) in this window. */
+body { background: var(--surface); }
+.wrap { display: flex; flex-direction: column; height: 100vh; border: 1px solid var(--border); }
+.head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); -webkit-app-region: drag; app-region: drag; }
+.head button, .head select { -webkit-app-region: no-drag; app-region: no-drag; }
+.head img { width: 22px; height: 22px; border-radius: 6px; }
+.body { flex: 1; min-height: 0; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+.chip:hover { background: var(--surface-2); }
+.chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.c-correctness { --c: #f03c45; } .c-clarity { --c: #1a8cf8; } .c-engagement { --c: #2bb86a; } .c-delivery { --c: #8b5cf6; }
+.dot { background: var(--c); }
+.summary { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); }
+.ring { width: 52px; height: 52px; flex: none; position: relative; }
+.ring svg { width: 52px; height: 52px; transform: rotate(-90deg); }
+.ring b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.issue { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--c); }
+.issue.done { opacity: .45; }
+.issue .title { font-weight: 600; font-size: 13px; }
+.issue del { color: var(--danger); text-decoration-thickness: 1px; }
+.issue ins { color: var(--ok); text-decoration: none; font-weight: 600; }
+.issue .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.draft { min-height: 74px; }
+.foot { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.goals { display: grid; grid-template-columns: 120px 1fr; gap: 8px 10px; align-items: center; }
+.words { display: flex; flex-wrap: wrap; gap: 6px; }
+.word { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 4px 0 9px; border-radius: 12px; background: var(--surface-2); font-size: 12.5px; }
+.word button { all: unset; cursor: pointer; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 9px; color: var(--text-3); }
+.word button:hover { background: var(--surface-3); color: var(--text); }
+  

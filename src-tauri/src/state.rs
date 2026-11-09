@@ -60,6 +60,8 @@ pub struct AppState {
     pub page_unread: Mutex<std::collections::HashSet<String>>,
     /// Per account: logical px of the page's top kept above the window (hidden header).
     pub crop_top: Mutex<HashMap<String, f64>>,
+    /// Per account: the draft check the page last reported (for the Writing assistant panel).
+    pub writing: Mutex<HashMap<String, serde_json::Value>>,
     /// The apps' own icons (data URLs) by service id.
     pub icons: Mutex<HashMap<String, String>>,
     pub http: reqwest::Client,

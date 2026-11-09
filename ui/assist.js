@@ -213,13 +213,13 @@ async function load() {
   A.text = null;
   A.dismissed.clear();
   A.filter = null;
-  A.tab = 'check';
+  // The checker beside this button does the proofreading; this popup is for writing with AI.
+  A.tab = 'write';
   $('#draft').value = A.original;
   $('#where').textContent = A.state.account ? `${A.state.account} · ${A.state.service}` : '';
   choiceBar($('#choice'), A.choice, A.state.providers, (c) => invoke('assist_save_choice', { choice: c, panel: false }));
   setStatus('');
   render();
-  if (!A.result) runCheck();
 }
 
 $('#close').innerHTML = ICON.close;

@@ -79,9 +79,13 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         .path()
         .document_dir()
         .or_else(|_| app.path().home_dir())?;
-    let settings = settings::Settings::load(&config_dir, &documents);
+    let mut settings = settings::Settings::load(&config_dir, &documents);
+    // New installs share browser processes from the start.
+    if settings.share_processes {
+        profiles::assign_all(&mut settings);
+    }
+    profiles::migrate(&config_dir, &mut settings);
     let _ = settings.save(&config_dir);
-    profiles::migrate(&config_dir, &settings);
     // Files decrypted for opening last time.
     let _ = std::fs::remove_dir_all(config_dir.join("temp-open"));
     let (key, archive_error) = match crypto::load_or_create_key(&config_dir) {
@@ -113,6 +117,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         senders: Mutex::new(HashMap::new()),
         page_unread: Mutex::new(Default::default()),
         crop_top: Mutex::new(HashMap::new()),
+        writing: Mutex::new(HashMap::new()),
         icons: Mutex::new(icons::load_cached(&config_dir_for_avatars)),
         http,
     };
@@ -338,6 +343,11 @@ pub fn run() {
             ai::mnemo_assist_open,
             ai::mnemo_assist_check,
             ai::mnemo_assist_learn,
+            ai::mnemo_writing,
+            ai::writing_state,
+            ai::writing_action,
+            ai::writing_apply,
+            ai::set_auto_check,
             ai::assist_learn,
             ai::assist_save_goals,
             // writing popup
