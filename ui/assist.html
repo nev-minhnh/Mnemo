@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mnemo – trợ lý viết</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { background: var(--surface); }
+    .wrap { display: flex; flex-direction: column; height: 100vh; border: 1px solid var(--border); }
+    .head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); -webkit-app-region: drag; app-region: drag; }
+    .head button, .head select { -webkit-app-region: no-drag; app-region: no-drag; }
+    .head img { width: 22px; height: 22px; border-radius: 6px; }
+    .body { flex: 1; min-height: 0; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12.5px; }
+    .chip:hover { background: var(--surface-2); }
+    .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+    .issue { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .issue.done { opacity: .5; }
+    .issue del { color: var(--danger); text-decoration-thickness: 1px; }
+    .issue ins { color: var(--ok); text-decoration: none; font-weight: 600; }
+    .draft { min-height: 74px; }
+    .foot { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head"><img src="logo.png" alt=""><b class="grow">Trợ lý viết</b><span class="small muted ellipsis" id="where"></span>
+      <button class="btn icon ghost" id="close" title="Đóng (Esc)"></button></div>
+    <div class="body scroll">
+      <div id="choice"></div>
+      <div class="chips" id="actions"></div>
+      <div class="row"><input type="text" id="req" class="grow" placeholder="Yêu cầu của bạn, vd: viết lại cho lịch sự, xưng em…"><button class="btn primary sm" id="send">Gửi</button></div>
+      <div id="status"></div>
+      <div id="out" class="col"></div>
+      <label class="col"><span class="small muted">Bản nháp (sửa trực tiếp được)</span><textarea id="draft" class="draft" rows="4"></textarea></label>
+    </div>
+    <div class="foot"><button class="btn primary grow" id="apply">Thay vào ô soạn tin</button><button class="btn" id="copy">Sao chép</button></div>
+  </div>
+  <div class="toast-host" id="toasts" style="left:12px;bottom:60px"></div>
+  <script src="common.js"></script>
+  <script src="assist.js"></script>
+</body>
+</html>

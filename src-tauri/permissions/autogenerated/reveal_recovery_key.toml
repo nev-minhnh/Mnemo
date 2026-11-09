@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reveal-recovery-key"
+description = "Enables the reveal_recovery_key command without any pre-configured scope."
+commands.allow = ["reveal_recovery_key"]
+
+[[permission]]
+identifier = "deny-reveal-recovery-key"
+description = "Denies the reveal_recovery_key command without any pre-configured scope."
+commands.deny = ["reveal_recovery_key"]

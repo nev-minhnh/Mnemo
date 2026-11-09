@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ai-summarize"
+description = "Enables the ai_summarize command without any pre-configured scope."
+commands.allow = ["ai_summarize"]
+
+[[permission]]
+identifier = "deny-ai-summarize"
+description = "Denies the ai_summarize command without any pre-configured scope."
+commands.deny = ["ai_summarize"]

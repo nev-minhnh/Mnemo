@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-media-preview"
+description = "Enables the media_preview command without any pre-configured scope."
+commands.allow = ["media_preview"]
+
+[[permission]]
+identifier = "deny-media-preview"
+description = "Denies the media_preview command without any pre-configured scope."
+commands.deny = ["media_preview"]

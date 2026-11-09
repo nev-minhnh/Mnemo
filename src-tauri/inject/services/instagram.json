@@ -1,0 +1,21 @@
+{
+  "_note": "Instagram Direct (instagram.com/direct). Instagram renames its CSS classes often, so these selectors use roles and attributes and may need tuning: override them in services\\instagram.json. Add your own 'css' here to hide the left navigation bar.",
+  "homeRedirect": { "from": ["/"], "to": "/direct/inbox/" },
+  "css": "",
+  "cssPaths": ["/direct"],
+  "chat": {
+    "key": { "from": "path", "re": "^/direct/t/(\\d+)" },
+    "title": [
+      { "sel": "div[role='main'] header h2 span" },
+      { "sel": "div[role='main'] h2" }
+    ]
+  },
+  "message": {
+    "sel": "div[role='main'] div[role='row']",
+    "text": { "sel": "div[dir='auto']" },
+    "sender": [{ "sel": "h5 span" }, { "sel": "h4 span" }],
+    "recalled": ["unsent a message", "đã thu hồi một tin nhắn"]
+  },
+  "media": { "sel": "img[src*='cdninstagram.com'], img[src*='fbcdn.net'], video[src^='blob:']", "minSize": 120 },
+  "compose": { "sel": "div[role='textbox'][contenteditable='true']" }
+}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ai-insert-reply"
+description = "Enables the ai_insert_reply command without any pre-configured scope."
+commands.allow = ["ai_insert_reply"]
+
+[[permission]]
+identifier = "deny-ai-insert-reply"
+description = "Denies the ai_insert_reply command without any pre-configured scope."
+commands.deny = ["ai_insert_reply"]

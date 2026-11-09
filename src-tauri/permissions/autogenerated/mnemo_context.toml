@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-context"
+description = "Enables the mnemo_context command without any pre-configured scope."
+commands.allow = ["mnemo_context"]
+
+[[permission]]
+identifier = "deny-mnemo-context"
+description = "Denies the mnemo_context command without any pre-configured scope."
+commands.deny = ["mnemo_context"]

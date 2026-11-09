@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assist-close"
+description = "Enables the assist_close command without any pre-configured scope."
+commands.allow = ["assist_close"]
+
+[[permission]]
+identifier = "deny-assist-close"
+description = "Denies the assist_close command without any pre-configured scope."
+commands.deny = ["assist_close"]

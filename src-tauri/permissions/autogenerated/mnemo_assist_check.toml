@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-assist-check"
+description = "Enables the mnemo_assist_check command without any pre-configured scope."
+commands.allow = ["mnemo_assist_check"]
+
+[[permission]]
+identifier = "deny-mnemo-assist-check"
+description = "Denies the mnemo_assist_check command without any pre-configured scope."
+commands.deny = ["mnemo_assist_check"]

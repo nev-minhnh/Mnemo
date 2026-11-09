@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sleep-account"
+description = "Enables the sleep_account command without any pre-configured scope."
+commands.allow = ["sleep_account"]
+
+[[permission]]
+identifier = "deny-sleep-account"
+description = "Denies the sleep_account command without any pre-configured scope."
+commands.deny = ["sleep_account"]

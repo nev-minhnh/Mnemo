@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "assist",
+  "description": "The writing popup.",
+  "windows": [
+    "assist"
+  ],
+  "permissions": [
+    "core:event:default",
+    "allow-assist-state",
+    "allow-assist-run",
+    "allow-assist-apply",
+    "allow-assist-close",
+    "allow-assist-save-choice"
+  ]
+}

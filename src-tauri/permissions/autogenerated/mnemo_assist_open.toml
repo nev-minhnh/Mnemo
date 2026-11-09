@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-assist-open"
+description = "Enables the mnemo_assist_open command without any pre-configured scope."
+commands.allow = ["mnemo_assist_open"]
+
+[[permission]]
+identifier = "deny-mnemo-assist-open"
+description = "Denies the mnemo_assist_open command without any pre-configured scope."
+commands.deny = ["mnemo_assist_open"]

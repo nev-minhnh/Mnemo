@@ -1,0 +1,552 @@
+//! Commands for Mnemo's own interface (the shell). Pages of the apps can't call these
+//! (see capabilities/shell.json and capabilities/services.json).
+
+use crate::archive::{Archive, ChatRow, MediaRow, MessageRow, SearchHit};
+use crate::importers::{self, ImportKind, ImportReport};
+use crate::settings::{Account, ProviderConfig, ProviderKind, ServiceId, Settings};
+use crate::state::{AppState, lock};
+use crate::webviews;
+use base64::Engine;
+use serde_json::{Value, json};
+use std::path::PathBuf;
+use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_dialog::DialogExt;
+
+fn save(state: &AppState, s: &Settings) -> Result<(), String> {
+    s.save(&state.config_dir)
+        .map_err(|e| format!("Không lưu được cài đặt: {e}"))
+}
+
+#[tauri::command]
+pub fn get_state(app: AppHandle, state: State<'_, AppState>) -> Value {
+    let s = state.settings();
+    let archive = state.with_archive(|a| a.stats());
+    let services: Vec<Value> = ServiceId::ALL
+        .iter()
+        .map(|id| json!({ "id": id.as_str(), "name": id.display(), "url": crate::services::def(*id).url }))
+        .collect();
+    json!({
+        "version": app.package_info().version.to_string(),
+        "settings": s,
+        "services": services,
+        "unread": *lock(&state.unread),
+        "stats": *lock(&state.stats),
+        "context": *lock(&state.context),
+        "visible": *lock(&state.visible),
+        "panelOpen": *lock(&state.panel_open),
+        "archive": match archive {
+            Ok(st) => json!({ "ok": true, "stats": st }),
+            Err(e) => json!({ "ok": false, "error": e }),
+        },
+        "configDir": state.config_dir,
+        "providers": crate::ai::ai_providers(state.clone()),
+    })
+}
+
+/// Saves settings from the interface. Folders change through their own commands.
+#[tauri::command]
+pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<(), String> {
+    let mut cur = lock(&state.settings);
+    let mut next = settings;
+    next.archive_dir = cur.archive_dir.clone();
+    next.accounts = cur.accounts.clone();
+    if next.downloads_dir.as_os_str().is_empty() {
+        next.downloads_dir = cur.downloads_dir.clone();
+    }
+    save(&state, &next)?;
+    *cur = next;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn add_account(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    service: String,
+    label: String,
+) -> Result<Account, String> {
+    let service = ServiceId::parse(&service).ok_or("Dịch vụ không hợp lệ")?;
+    let account = {
+        let mut s = lock(&state.settings);
+        let n = s.accounts.iter().filter(|a| a.service == service).count() + 1;
+        let label = if label.trim().is_empty() {
+            if n == 1 {
+                service.display().to_string()
+            } else {
+                format!("{} {n}", service.display())
+            }
+        } else {
+            crate::util::truncate_chars(label.trim(), 60)
+        };
+        let account = Account {
+            id: crate::util::random_id(6),
+            service,
+            label,
+            ..Account::default()
+        };
+        s.accounts.push(account.clone());
+        save(&state, &s)?;
+        account
+    };
+    webviews::show_account(&app, &account.id)?;
+    Ok(account)
+}
+
+#[tauri::command]
+pub fn update_account(state: State<'_, AppState>, account: Account) -> Result<(), String> {
+    let mut s = lock(&state.settings);
+    let slot = s
+        .accounts
+        .iter_mut()
+        .find(|a| a.id == account.id)
+        .ok_or("Không tìm thấy tài khoản")?;
+    let service = slot.service;
+    *slot = Account {
+        service,
+        label: crate::util::truncate_chars(account.label.trim(), 60),
+        ..account
+    };
+    save(&state, &s)
+}
+
+#[tauri::command]
+pub fn move_account(state: State<'_, AppState>, id: String, delta: i32) -> Result<(), String> {
+    let mut s = lock(&state.settings);
+    let i = s
+        .accounts
+        .iter()
+        .position(|a| a.id == id)
+        .ok_or("Không tìm thấy tài khoản")?;
+    let j = (i as i64 + delta as i64).clamp(0, s.accounts.len() as i64 - 1) as usize;
+    s.accounts.swap(i, j);
+    save(&state, &s)
+}
+
+/// Removes an account. Its archived messages stay; `wipe_profile` also signs it out
+/// for good by deleting its browser data.
+#[tauri::command]
+pub fn remove_account(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    wipe_profile: bool,
+) -> Result<(), String> {
+    webviews::close_account(&app, &id);
+    {
+        let mut s = lock(&state.settings);
+        s.accounts.retain(|a| a.id != id);
+        save(&state, &s)?;
+    }
+    lock(&state.unread).remove(&id);
+    if wipe_profile {
+        let dir = state.config_dir.join("profiles").join(&id);
+        // The browser process may still hold files for a moment after closing.
+        std::thread::spawn(move || {
+            for _ in 0..20 {
+                if std::fs::remove_dir_all(&dir).is_ok() || !dir.exists() {
+                    return;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+        });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn show_account(app: AppHandle, id: String) -> Result<(), String> {
+    webviews::show_account(&app, &id)
+}
+
+#[tauri::command]
+pub fn show_page(app: AppHandle) {
+    webviews::hide_accounts(&app);
+}
+
+#[tauri::command]
+pub fn reload_account(app: AppHandle, id: String) -> Result<(), String> {
+    let wv = app
+        .get_webview(&webviews::label_for(&id))
+        .ok_or("Tài khoản chưa mở")?;
+    wv.reload().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn sleep_account(app: AppHandle, id: String) {
+    webviews::close_account(&app, &id);
+    let _ = app.emit_to(webviews::SHELL, "visible", json!({ "account": null }));
+}
+
+#[tauri::command]
+pub fn open_devtools(app: AppHandle, id: String) -> Result<(), String> {
+    let wv = app
+        .get_webview(&webviews::label_for(&id))
+        .ok_or("Tài khoản chưa mở")?;
+    wv.open_devtools();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_panel(app: AppHandle, state: State<'_, AppState>, open: bool) {
+    *lock(&state.panel_open) = open;
+    webviews::layout(&app);
+}
+
+#[tauri::command]
+pub async fn pick_folder(app: AppHandle, title: Option<String>) -> Option<String> {
+    let mut d = app.dialog().file();
+    if let Some(t) = title {
+        d = d.set_title(t);
+    }
+    d.blocking_pick_folder()
+        .and_then(|p| p.into_path().ok())
+        .map(|p| p.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn pick_file(
+    app: AppHandle,
+    title: Option<String>,
+    extensions: Vec<String>,
+) -> Option<String> {
+    let mut d = app.dialog().file();
+    if let Some(t) = title {
+        d = d.set_title(t);
+    }
+    if !extensions.is_empty() {
+        let exts: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+        d = d.add_filter("Tệp", &exts);
+    }
+    d.blocking_pick_file()
+        .and_then(|p| p.into_path().ok())
+        .map(|p| p.to_string_lossy().into_owned())
+}
+
+/// Moves the archive to another folder: copies `mnemo.db` there (or opens the archive
+/// already there with the current key), then switches. The old copy is left in place.
+#[tauri::command]
+pub fn set_archive_dir(state: State<'_, AppState>, path: String) -> Result<String, String> {
+    let new_dir = PathBuf::from(path.trim());
+    if !new_dir.is_absolute() {
+        return Err("Hãy chọn một thư mục đầy đủ".into());
+    }
+    std::fs::create_dir_all(&new_dir)
+        .map_err(|e| format!("Không tạo được {}: {e}", new_dir.display()))?;
+    let key = state.key()?;
+    let old_dir = lock(&state.settings).archive_dir.clone();
+    if new_dir == old_dir {
+        return Ok("Không có gì thay đổi".into());
+    }
+    let target = Archive::db_path(&new_dir);
+    let mut archive = lock(&state.archive);
+    let message = if target.exists() {
+        let opened = Archive::open(&new_dir, &key)?;
+        *archive = Some(opened);
+        format!("Đã chuyển sang kho có sẵn ở {}", new_dir.display())
+    } else {
+        if let Some(a) = archive.as_ref() {
+            a.checkpoint()?;
+        }
+        *archive = None;
+        std::fs::copy(Archive::db_path(&old_dir), &target)
+            .map_err(|e| format!("Không chép được kho: {e}"))?;
+        match Archive::open(&new_dir, &key) {
+            Ok(a) => *archive = Some(a),
+            Err(e) => {
+                *archive = Archive::open(&old_dir, &key).ok();
+                return Err(e);
+            }
+        }
+        format!(
+            "Đã chuyển kho sang {}. Bản cũ vẫn còn ở {}, bạn có thể tự xóa.",
+            new_dir.display(),
+            old_dir.display()
+        )
+    };
+    *lock(&state.archive_error) = None;
+    let mut s = lock(&state.settings);
+    s.archive_dir = new_dir;
+    save(&state, &s)?;
+    Ok(message)
+}
+
+#[tauri::command]
+pub fn set_downloads_dir(state: State<'_, AppState>, path: String) -> Result<(), String> {
+    let dir = PathBuf::from(path.trim());
+    if !dir.is_absolute() {
+        return Err("Hãy chọn một thư mục đầy đủ".into());
+    }
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Không tạo được {}: {e}", dir.display()))?;
+    let mut s = lock(&state.settings);
+    s.downloads_dir = dir;
+    save(&state, &s)
+}
+
+#[tauri::command]
+pub fn list_chats(
+    state: State<'_, AppState>,
+    service: Option<String>,
+    account: Option<String>,
+    query: Option<String>,
+) -> Result<Vec<ChatRow>, String> {
+    state.with_archive(|a| {
+        a.list_chats(
+            service.as_deref(),
+            account.as_deref(),
+            query.as_deref(),
+            500,
+        )
+    })
+}
+
+#[tauri::command]
+pub fn chat_messages(
+    state: State<'_, AppState>,
+    chat_id: i64,
+    before_ord: Option<i64>,
+    before_id: Option<i64>,
+    around: Option<i64>,
+) -> Result<Vec<MessageRow>, String> {
+    state.with_archive(|a| match around {
+        Some(mid) => a.messages_around(chat_id, mid, 60),
+        None => a.messages(chat_id, before_ord.zip(before_id), 120),
+    })
+}
+
+#[tauri::command]
+pub fn search_messages(
+    state: State<'_, AppState>,
+    query: String,
+    service: Option<String>,
+    offset: Option<i64>,
+) -> Result<Vec<SearchHit>, String> {
+    state.with_archive(|a| a.search(&query, service.as_deref(), 100, offset.unwrap_or(0)))
+}
+
+#[tauri::command]
+pub fn mark_seen(state: State<'_, AppState>, chat_id: i64) -> Result<(), String> {
+    state.with_archive(|a| a.mark_all_seen(chat_id))
+}
+
+/// The archived chat matching what an account's page shows right now.
+#[tauri::command]
+pub fn live_chat(
+    state: State<'_, AppState>,
+    account_id: String,
+) -> Result<Option<ChatRow>, String> {
+    let ctx = lock(&state.context).get(&account_id).cloned();
+    let s = state.settings();
+    let Some(account) = s.account(&account_id) else {
+        return Ok(None);
+    };
+    let Some(key) = ctx.and_then(|c| c.chat_key) else {
+        return Ok(None);
+    };
+    state.with_archive(
+        |a| match a.find_chat(account.service.as_str(), &account_id, &key)? {
+            Some(id) => a.chat(id),
+            None => Ok(None),
+        },
+    )
+}
+
+#[tauri::command]
+pub fn list_media(
+    state: State<'_, AppState>,
+    offset: Option<i64>,
+) -> Result<Vec<MediaRow>, String> {
+    state.with_archive(|a| a.media_list(200, offset.unwrap_or(0)))
+}
+
+/// A small image as a data URL for previews (decrypted in memory when needed).
+#[tauri::command]
+pub async fn media_preview(state: State<'_, AppState>, id: i64) -> Result<Option<String>, String> {
+    let m = state
+        .with_archive(|a| a.media_get(id))?
+        .ok_or("Không tìm thấy tệp")?;
+    if m.kind != "image" || m.size > 8 * 1024 * 1024 {
+        return Ok(None);
+    }
+    let key = state.key()?;
+    let data = crate::media::read_plain(std::path::Path::new(&m.path), &key)?;
+    let ext = crate::util::ext_of(m.file_name.trim_end_matches(".mnemo"));
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "bmp" => "image/bmp",
+        _ => "image/jpeg",
+    };
+    Ok(Some(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(data)
+    )))
+}
+
+/// Opens a saved file with its default app. Encrypted files are decrypted to a private
+/// temporary folder first (emptied when Mnemo starts).
+#[tauri::command]
+pub fn open_media(app: AppHandle, state: State<'_, AppState>, id: i64) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let m = state
+        .with_archive(|a| a.media_get(id))?
+        .ok_or("Không tìm thấy tệp")?;
+    let path = PathBuf::from(&m.path);
+    let target = if m.encrypted {
+        let key = state.key()?;
+        let data = crate::media::read_plain(&path, &key)?;
+        let dir = state.config_dir.join("temp-open");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let out = crate::util::unique_path(
+            &dir,
+            &crate::util::safe_component(m.file_name.trim_end_matches(".mnemo"), 120),
+        );
+        std::fs::write(&out, data).map_err(|e| e.to_string())?;
+        out
+    } else {
+        path
+    };
+    app.opener()
+        .open_path(target.to_string_lossy(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn reveal_media(app: AppHandle, state: State<'_, AppState>, id: i64) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let m = state
+        .with_archive(|a| a.media_get(id))?
+        .ok_or("Không tìm thấy tệp")?;
+    app.opener()
+        .reveal_item_in_dir(&m.path)
+        .map_err(|e| e.to_string())
+}
+
+/// Opens one of Mnemo's folders in Explorer.
+#[tauri::command]
+pub fn open_folder(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    which: String,
+) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let s = state.settings();
+    let dir = match which.as_str() {
+        "archive" => s.archive_dir,
+        "downloads" => s.downloads_dir,
+        "services" => state.config_dir.join("services"),
+        "logs" => app.path().app_log_dir().map_err(|e| e.to_string())?,
+        _ => return Err("unknown folder".into()),
+    };
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener()
+        .open_path(dir.to_string_lossy(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn open_url(app: AppHandle, url: String) {
+    webviews::open_external(&app, &url);
+}
+
+#[tauri::command]
+pub async fn run_import(
+    app: AppHandle,
+    kind: ImportKind,
+    path: String,
+    account_id: String,
+) -> Result<ImportReport, String> {
+    let app2 = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app2.state::<AppState>();
+        let emitter = app2.clone();
+        importers::run(
+            &state,
+            kind,
+            std::path::Path::new(&path),
+            &account_id,
+            &|p| {
+                let _ = emitter.emit_to(webviews::SHELL, "import-progress", &p);
+            },
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn reveal_recovery_key(state: State<'_, AppState>) -> Result<String, String> {
+    Ok(crate::crypto::recovery_string(&state.key()?))
+}
+
+/// Uses a recovery key (from another computer) to open the archive here.
+#[tauri::command]
+pub fn import_recovery_key(state: State<'_, AppState>, key: String) -> Result<(), String> {
+    let k = crate::crypto::parse_recovery(&key)?;
+    let dir = lock(&state.settings).archive_dir.clone();
+    let opened = Archive::open(&dir, &k)?;
+    crate::crypto::save_key(&state.config_dir, &k)?;
+    *lock(&state.key) = Some(k);
+    *lock(&state.archive) = Some(opened);
+    *lock(&state.archive_error) = None;
+    Ok(())
+}
+
+/// Adds an OpenAI-compatible provider (DeepSeek, MiniMax, OpenRouter, a local server…).
+#[tauri::command]
+pub fn add_provider(
+    state: State<'_, AppState>,
+    name: String,
+    base_url: String,
+) -> Result<ProviderConfig, String> {
+    let url = url::Url::parse(base_url.trim()).map_err(|_| "Địa chỉ API không hợp lệ")?;
+    if !matches!(url.scheme(), "https" | "http") {
+        return Err(
+            "Địa chỉ API phải bắt đầu bằng https:// (hoặc http:// cho máy chủ trong máy)".into(),
+        );
+    }
+    let p = ProviderConfig {
+        id: format!("custom-{}", crate::util::random_id(4)),
+        kind: ProviderKind::Compatible,
+        name: if name.trim().is_empty() {
+            url.host_str().unwrap_or("API").to_string()
+        } else {
+            name.trim().to_string()
+        },
+        base_url: base_url.trim().trim_end_matches('/').to_string(),
+        ..ProviderConfig::default()
+    };
+    let mut s = lock(&state.settings);
+    s.ai.providers.push(p.clone());
+    save(&state, &s)?;
+    Ok(p)
+}
+
+#[tauri::command]
+pub fn update_provider(state: State<'_, AppState>, provider: ProviderConfig) -> Result<(), String> {
+    let mut s = lock(&state.settings);
+    let slot =
+        s.ai.providers
+            .iter_mut()
+            .find(|p| p.id == provider.id)
+            .ok_or("Không tìm thấy provider")?;
+    let kind = slot.kind;
+    *slot = ProviderConfig { kind, ..provider };
+    save(&state, &s)
+}
+
+#[tauri::command]
+pub fn remove_provider(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    let mut s = lock(&state.settings);
+    let builtin = crate::settings::default_providers()
+        .iter()
+        .any(|p| p.id == id);
+    if builtin {
+        return Err("Provider có sẵn chỉ có thể tắt, không xóa được".into());
+    }
+    s.ai.providers.retain(|p| p.id != id);
+    save(&state, &s)?;
+    drop(s);
+    lock(&state.secrets).set(&id, None)
+}

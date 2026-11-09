@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assist-state"
+description = "Enables the assist_state command without any pre-configured scope."
+commands.allow = ["assist_state"]
+
+[[permission]]
+identifier = "deny-assist-state"
+description = "Denies the assist_state command without any pre-configured scope."
+commands.deny = ["assist_state"]

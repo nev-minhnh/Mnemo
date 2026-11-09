@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-archive-dir"
+description = "Enables the set_archive_dir command without any pre-configured scope."
+commands.allow = ["set_archive_dir"]
+
+[[permission]]
+identifier = "deny-set-archive-dir"
+description = "Denies the set_archive_dir command without any pre-configured scope."
+commands.deny = ["set_archive_dir"]

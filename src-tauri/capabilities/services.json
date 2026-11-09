@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "services",
+  "description": "The apps' own pages: only saving what they show and opening the writing popup.",
+  "webviews": [
+    "acc-*"
+  ],
+  "remote": {
+    "urls": [
+      "https://web.whatsapp.com/*",
+      "https://web.telegram.org/*",
+      "https://*.facebook.com/*",
+      "https://www.instagram.com/*",
+      "https://chat.zalo.me/*"
+    ]
+  },
+  "permissions": [
+    "allow-mnemo-config",
+    "allow-mnemo-log",
+    "allow-mnemo-context",
+    "allow-mnemo-ingest",
+    "allow-mnemo-media-blob",
+    "allow-mnemo-media-url",
+    "allow-mnemo-assist-open",
+    "allow-mnemo-assist-check"
+  ]
+}

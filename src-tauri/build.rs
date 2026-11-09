@@ -1,0 +1,68 @@
+// Every app command gets an `allow-<command>` permission, so each webview can be given
+// exactly the commands it needs (capabilities/*.json): the apps' pages only reach the
+// capture and writing-assistant commands, never settings, files or keys.
+const COMMANDS: &[&str] = &[
+    "mnemo_config",
+    "mnemo_log",
+    "mnemo_context",
+    "mnemo_ingest",
+    "mnemo_media_blob",
+    "mnemo_media_url",
+    "mnemo_assist_open",
+    "mnemo_assist_check",
+    "assist_state",
+    "assist_run",
+    "assist_apply",
+    "assist_close",
+    "assist_save_choice",
+    "get_state",
+    "save_settings",
+    "add_account",
+    "update_account",
+    "move_account",
+    "remove_account",
+    "show_account",
+    "show_page",
+    "reload_account",
+    "sleep_account",
+    "open_devtools",
+    "set_panel",
+    "pick_folder",
+    "pick_file",
+    "set_archive_dir",
+    "set_downloads_dir",
+    "list_chats",
+    "chat_messages",
+    "search_messages",
+    "mark_seen",
+    "live_chat",
+    "list_media",
+    "media_preview",
+    "open_media",
+    "reveal_media",
+    "open_folder",
+    "open_url",
+    "run_import",
+    "reveal_recovery_key",
+    "import_recovery_key",
+    "add_provider",
+    "update_provider",
+    "remove_provider",
+    "ai_providers",
+    "ai_set_key",
+    "ai_list_models",
+    "ai_test",
+    "ai_import_skill",
+    "ai_summarize",
+    "ai_suggest_replies",
+    "ai_ask",
+    "ai_insert_reply",
+];
+
+fn main() {
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)),
+    )
+    .expect("failed to run tauri-build");
+}
