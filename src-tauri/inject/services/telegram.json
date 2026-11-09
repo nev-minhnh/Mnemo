@@ -52,7 +52,16 @@
   "compose": {
     "sel": "#editable-message-text"
   },
-  "selfAvatar": [],
+  "selfAvatar": [
+    {
+      "sel": "#LeftColumn .ProfileInfo img.avatar-media, #LeftColumn .ProfileInfo .ProfilePhoto img:not(.thumb), #Settings .ProfileInfo img.avatar-media",
+      "not": "#RightColumn, #MiddleColumn"
+    },
+    {
+      "sel": ".settings-content .ProfileInfo img, .settings-main-menu .ProfileInfo img",
+      "not": "#RightColumn, #MiddleColumn"
+    }
+  ],
   "chatList": {
     "sel": ".chat-list .ListItem .fullName"
   },
@@ -62,5 +71,6 @@
     "name": {
       "sel": ".fullName"
     }
-  }
+  },
+  "_avatarNote": "Telegram Web shows your own photo only in Settings (☰ → Settings); Mnemo picks it up the first time that screen is open and keeps it."
 }

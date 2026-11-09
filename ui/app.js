@@ -1022,6 +1022,10 @@ async function start() {
     const n = $('#imp-progress');
     if (n) n.textContent = `${e.payload.chats} hội thoại · ${e.payload.messages} tin · ${e.payload.media} tệp — ${e.payload.current}`;
   });
+  listen('settings', async () => {
+    await refresh();
+    if (page === 'settings' && !visible) renderMain();
+  });
   listen('accounts', async () => {
     await refresh();
     if (page === 'home' && !visible) renderMain();

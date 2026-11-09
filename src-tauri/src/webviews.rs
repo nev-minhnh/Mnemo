@@ -72,6 +72,23 @@ fn account_rect(
     )
 }
 
+/// Where an account that isn't shown waits: just outside the window, at full size.
+/// Hiding a WebView2 tells the page it went to the background, and apps such as WhatsApp
+/// then drop their connection and load again from scratch when you come back; a parked
+/// page keeps running exactly as it was, so switching accounts is instant.
+fn parked(size: &LogicalSize<f64>) -> LogicalPosition<f64> {
+    LogicalPosition::new(-(size.width + 400.0), 0.0)
+}
+
+/// Moves an account's page out of sight without pausing it.
+pub fn park(app: &AppHandle, wv: &Webview) {
+    if let Some(window) = app.get_window(MAIN) {
+        let (_, size) = account_rect(app, &window);
+        let _ = wv.set_size(size);
+        let _ = wv.set_position(parked(&size));
+    }
+}
+
 /// Puts the shell and the visible account where they belong (after a resize or a panel toggle).
 pub fn layout(app: &AppHandle) {
     let Some(window) = app.get_window(MAIN) else {
@@ -82,12 +99,19 @@ pub fn layout(app: &AppHandle) {
         let _ = shell.set_position(LogicalPosition::new(0.0, 0.0));
         let _ = shell.set_size(LogicalSize::new(w, h));
     }
-    let visible = lock(&app.state::<AppState>().visible).clone();
-    if let Some(id) = visible {
-        if let Some(wv) = app.get_webview(&label_for(&id)) {
-            let (pos, size) = account_rect(app, &window);
+    let visible = lock(&app.state::<AppState>().visible)
+        .as_deref()
+        .map(label_for);
+    let (pos, size) = account_rect(app, &window);
+    for wv in app.webviews().values() {
+        if !wv.label().starts_with("acc-") {
+            continue;
+        }
+        let _ = wv.set_size(size);
+        if visible.as_deref() == Some(wv.label()) {
             let _ = wv.set_position(pos);
-            let _ = wv.set_size(size);
+        } else {
+            let _ = wv.set_position(parked(&size));
         }
     }
 }
@@ -279,6 +303,13 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
             _ => PermissionResponse::Default,
         })
         .zoom_hotkeys_enabled(true)
+        // Tauri's own defaults, plus: never slow down or freeze an app's page because it
+        // isn't on screen, so messages, calls and notifications keep arriving live.
+        .additional_browser_args(
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+             --disable-background-timer-throttling --disable-renderer-backgrounding \
+             --disable-backgrounding-occluded-windows",
+        )
         .devtools(true);
     let (pos, size) = account_rect(app, &window);
     let wv = window
@@ -296,12 +327,8 @@ pub fn show_account(app: &AppHandle, account_id: &str) -> Result<(), String> {
         .cloned()
         .ok_or("Không tìm thấy tài khoản")?;
     let wv = ensure_account(app, &account)?;
-    for other in app.webviews().values() {
-        if other.label().starts_with("acc-") && other.label() != wv.label() {
-            let _ = other.hide();
-        }
-    }
     *lock(&state.visible) = Some(account_id.to_string());
+    // The others are parked, not hidden, so their pages keep running.
     layout(app);
     let _ = wv.show();
     let _ = wv.set_focus();
@@ -315,12 +342,11 @@ pub fn show_account(app: &AppHandle, account_id: &str) -> Result<(), String> {
 
 /// Hides every account so Mnemo's own pages (archive, settings) show.
 pub fn hide_accounts(app: &AppHandle) {
-    for wv in app.webviews().values() {
-        if wv.label().starts_with("acc-") {
-            let _ = wv.hide();
-        }
-    }
     *lock(&app.state::<AppState>().visible) = None;
+    layout(app);
+    if let Some(shell) = app.get_webview(SHELL) {
+        let _ = shell.set_focus();
+    }
     let _ = app.emit_to(SHELL, "visible", serde_json::json!({ "account": null }));
 }
 

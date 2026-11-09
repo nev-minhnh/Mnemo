@@ -25,7 +25,8 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
   - **Bấm vào thông báo** thì mở Mnemo đúng tài khoản và chạy lại hành động bấm thông báo của chính app, để tới đúng hội thoại và tin nhắn.
   - Bật/tắt riêng từng tài khoản. Có tùy chọn ẩn nội dung và chỉnh thời gian hiển thị.
 - **Số tin chưa đọc tổng** trên biểu tượng taskbar (có thể tắt), trên tiêu đề cửa sổ và trên tooltip ở khay.
-- **Khởi động cùng Windows**: Mnemo chạy ẩn ở khay hệ thống, vẫn lưu tin và vẫn hiện thông báo. **Bấm × thì thu về khay**; thoát hẳn từ menu khay hoặc nút "Thoát Mnemo ngay" trong Cài đặt.
+- Chuyển qua lại giữa các tài khoản **không tải lại trang**: tài khoản không hiển thị vẫn chạy (được "đỗ" ngoài khung cửa sổ thay vì bị ẩn), nên WhatsApp và các app khác giữ nguyên phiên và kết nối.
+- **Khởi động cùng Windows**: Mnemo chạy ẩn ở khay hệ thống, vẫn lưu tin và vẫn hiện thông báo. **Bấm × thì thu về khay**; thoát hẳn từ menu khay hoặc nút "Thoát Mnemo ngay" trong Cài đặt. Hai tùy chọn này có cả trong **Cài đặt → Khởi động & khay hệ thống** lẫn menu chuột phải ở biểu tượng khay.
 
 **Kho tin nhắn cục bộ**
 - **Mức A, tự động:** tin nhắn và tệp mà ứng dụng hiển thị được lưu ngay khi bạn mở hội thoại.
@@ -88,7 +89,7 @@ Tải `Mnemo-<version>-windows-x64.zip` từ mục Actions/Releases rồi giải
 - **WeChat Web** bị Tencent chặn đăng nhập với nhiều tài khoản (nhất là tài khoản mới hoặc đăng ký ngoài một số khu vực). Nếu trang báo không thể đăng nhập bằng web, Mnemo không thể vượt qua giới hạn đó.
 - Discord: Mnemo chỉ chạy bản web chính chủ bằng tài khoản người dùng bình thường, không tự động hóa gì; selector cho Discord, WeChat, Threads, Slack và LinkedIn **chưa được kiểm tra trên tài khoản thật**.
 - **Xác minh bằng Google/Apple/Microsoft:** khi Facebook, Instagram hay ứng dụng khác bắt xác minh danh tính bằng tài khoản Google, trang đăng nhập mở ngay trong Mnemo (cùng hồ sơ của tài khoản đó) và trả kết quả về ứng dụng. Google đôi khi từ chối đăng nhập trong ứng dụng nhúng; khi đó hãy thử lại sau hoặc xác minh trên điện thoại.
-- Avatar tự động lấy được trên WhatsApp và Messenger (nếu trang hiển thị). Telegram Web không hiện avatar của chính bạn, nên với Telegram (và khi selector không khớp) hãy chọn ảnh trong trang tài khoản.
+- Avatar tự động lấy được trên WhatsApp và Messenger (nếu trang hiển thị). Telegram Web chỉ hiện avatar của bạn trong màn Cài đặt (☰ → Settings): mở màn đó một lần là Mnemo lấy và giữ ảnh. Khi selector không khớp, hãy chọn ảnh trong trang tài khoản.
 - Thông báo dựa vào việc app gửi thông báo web. Nếu một app không gửi, Mnemo vẫn hiện thông báo chung "N tin nhắn mới" khi số chưa đọc tăng.
 - Viber không có bản web nên không được hỗ trợ.
 

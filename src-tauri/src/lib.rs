@@ -131,16 +131,45 @@ pub fn show_main(app: &tauri::AppHandle) {
 
 /// The tray menu in the interface language.
 pub fn tray_menu(app: &tauri::AppHandle, en: bool) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
-    use tauri::menu::{MenuBuilder, MenuItemBuilder};
-    let open =
-        MenuItemBuilder::with_id("open", if en { "Open Mnemo" } else { "Mở Mnemo" }).build(app)?;
-    let quit = MenuItemBuilder::with_id("quit", if en { "Quit Mnemo" } else { "Thoát Mnemo" })
-        .build(app)?;
+    use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder};
+    let s = app.state::<AppState>().settings();
+    let t = |vi: &'static str, en_text: &'static str| if en { en_text } else { vi };
+    let open = MenuItemBuilder::with_id("open", t("Mở Mnemo", "Open Mnemo")).build(app)?;
+    let autostart = CheckMenuItemBuilder::with_id(
+        "autostart",
+        t(
+            "Khởi động cùng Windows (chạy ở khay)",
+            "Start with Windows (in the tray)",
+        ),
+    )
+    .checked(s.start_with_windows)
+    .build(app)?;
+    let tray = CheckMenuItemBuilder::with_id(
+        "close_to_tray",
+        t(
+            "Bấm × thì thu về khay",
+            "Closing the window minimizes to the tray",
+        ),
+    )
+    .checked(s.close_to_tray)
+    .build(app)?;
+    let quit = MenuItemBuilder::with_id("quit", t("Thoát Mnemo", "Quit Mnemo")).build(app)?;
     MenuBuilder::new(app)
         .item(&open)
         .separator()
+        .item(&autostart)
+        .item(&tray)
+        .separator()
         .item(&quit)
         .build()
+}
+
+/// Rebuilds the tray menu (language or a checkbox changed).
+pub fn refresh_tray_menu(app: &tauri::AppHandle) {
+    let en = app.state::<AppState>().settings().language == "en";
+    if let (Some(tray), Ok(menu)) = (app.tray_by_id("mnemo"), tray_menu(app, en)) {
+        let _ = tray.set_menu(Some(menu));
+    }
 }
 
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
@@ -154,6 +183,25 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
         .on_menu_event(|app, e| match e.id().as_ref() {
             "open" => show_main(app),
             "quit" => app.exit(0),
+            "autostart" => {
+                let state = app.state::<AppState>();
+                let on = !state.settings().start_with_windows;
+                if let Err(e) = commands::apply_autostart(app, &state, on) {
+                    log::warn!("{e}");
+                }
+                refresh_tray_menu(app);
+                let _ = tauri::Emitter::emit_to(app, webviews::SHELL, "settings", ());
+            }
+            "close_to_tray" => {
+                let state = app.state::<AppState>();
+                {
+                    let mut s = lock(&state.settings);
+                    s.close_to_tray = !s.close_to_tray;
+                    let _ = commands::save(&state, &s);
+                }
+                refresh_tray_menu(app);
+                let _ = tauri::Emitter::emit_to(app, webviews::SHELL, "settings", ());
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, e| {
@@ -247,7 +295,7 @@ pub fn run() {
                         if lock(&handle.state::<AppState>().visible).as_deref()
                             != Some(a.id.as_str())
                         {
-                            let _ = wv.hide();
+                            webviews::park(&handle, &wv);
                         }
                     }
                     std::thread::sleep(std::time::Duration::from_millis(400));

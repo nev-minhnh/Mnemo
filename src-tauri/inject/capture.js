@@ -209,7 +209,11 @@
   async function detectAvatar() {
     const specs = cfg.selfAvatar || [];
     for (const s of specs) {
-      const node = q(document, s.sel);
+      // "last": the bottom-most match (WhatsApp keeps your own photo at the end of its rail);
+      // "not": skip matches inside these elements (Meta AI, channels…).
+      let nodes = qa(document, s.sel);
+      if (s.not) nodes = nodes.filter((n) => !n.closest(s.not));
+      const node = s.last ? nodes[nodes.length - 1] : nodes[0];
       if (!node) continue;
       const src = s.attr ? (node.getAttribute(s.attr) || '') : (node.currentSrc || node.src || '');
       if (!src || src === avatarSent) return;
@@ -235,7 +239,8 @@
     }
   }
   setTimeout(detectAvatar, 6000);
-  setInterval(detectAvatar, 60000);
+  // Often: some apps show your photo only on one screen (Telegram: Settings).
+  setInterval(detectAvatar, 5000);
 
   // Names of the conversations the chat list marks unread (for "From: 3 người" notices).
   let lastSenders = '';

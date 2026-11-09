@@ -55,10 +55,13 @@
   },
   "selfAvatar": [
     {
-      "sel": "#side header img[src]"
+      "sel": "[aria-label='Profile' i] img[src], [aria-label='Hồ sơ' i] img[src], [aria-label='Profile photo' i] img[src], [aria-label='Ảnh hồ sơ' i] img[src], [title='Profile' i] img[src], [title='Hồ sơ' i] img[src]",
+      "not": "#main, #pane-side, [aria-label*='Meta AI' i], [title*='Meta AI' i]"
     },
     {
-      "sel": "header img[src]"
+      "sel": "header img[src*='pps.whatsapp.net'], [role='navigation'] img[src*='pps.whatsapp.net']",
+      "not": "#main, #pane-side, [aria-label*='Meta AI' i], [title*='Meta AI' i], [aria-label*='Status' i], [aria-label*='Trạng thái' i]",
+      "last": true
     }
   ],
   "chatList": {
@@ -71,5 +74,7 @@
       "sel": "span[title]",
       "attr": "title"
     }
-  }
+  },
+  "_noteAvatar": "Your own photo is the Profile button at the bottom of the left rail (2025+ layout). Only profile photos (pps.whatsapp.net) count, so the Meta AI icon in the same rail is never taken as your avatar.",
+  "_avatarNote": "Your photo is the bottom item of WhatsApp's left rail; the Meta AI button above it also shows a pps.whatsapp.net picture, so it is excluded."
 }

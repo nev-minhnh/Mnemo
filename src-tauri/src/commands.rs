@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
-fn save(state: &AppState, s: &Settings) -> Result<(), String> {
+pub fn save(state: &AppState, s: &Settings) -> Result<(), String> {
     s.save(&state.config_dir)
         .map_err(|e| format!("Không lưu được cài đặt: {e}"))
 }
@@ -62,13 +62,11 @@ pub fn save_settings(
     }
     save(&state, &next)?;
     let lang_changed = cur.language != next.language;
+    let tray_changed = cur.close_to_tray != next.close_to_tray;
     *cur = next;
     drop(cur);
-    if lang_changed {
-        let en = state.settings().language == "en";
-        if let (Some(tray), Ok(menu)) = (app.tray_by_id("mnemo"), crate::tray_menu(&app, en)) {
-            let _ = tray.set_menu(Some(menu));
-        }
+    if lang_changed || tray_changed {
+        crate::refresh_tray_menu(&app);
     }
     crate::notify::update_taskbar(&app);
     Ok(())
@@ -623,6 +621,13 @@ pub fn set_autostart(
     state: State<'_, AppState>,
     enabled: bool,
 ) -> Result<(), String> {
+    apply_autostart(&app, &state, enabled)?;
+    crate::refresh_tray_menu(&app);
+    Ok(())
+}
+
+/// Turns "start with Windows" on or off (Windows' Run key) and remembers it.
+pub fn apply_autostart(app: &AppHandle, state: &AppState, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
     let launcher = app.autolaunch();
     if enabled {
