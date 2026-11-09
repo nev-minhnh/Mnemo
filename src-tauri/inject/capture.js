@@ -598,6 +598,11 @@
 
   // ---------- writing assistant ----------
   let host = null, shadow = null, badge = null, lastEditable = null, idleTimer = null, lastChecked = '';
+  // In-place suggestions: underlines in the message box and a card on hover. They only ever
+  // come from the draft in that box; nothing else on the page is read or sent.
+  let marks = null, card = null, cardTimer = null, issues = [], issuesEl = null, shownIssue = null;
+  const CAT_COLOR = { correctness: '#f03c45', clarity: '#1a8cf8', engagement: '#2bb86a', delivery: '#8b5cf6' };
+  const CAT_NAME = { correctness: 'Lỗi', clarity: 'Rõ ràng', engagement: 'Hấp dẫn', delivery: 'Giọng điệu' };
   function isEditable(el) {
     if (!el || el === host) return false;
     if (el.tagName === 'TEXTAREA') return true;
@@ -643,7 +648,19 @@
         button:hover{transform:scale(1.08)}
         button.busy{opacity:.7}
         button.issues{background:linear-gradient(135deg,#e5484d,#f76b15)}
-        button.clean{background:linear-gradient(135deg,#12a594,#30a46c)}`);
+        button.clean{background:linear-gradient(135deg,#12a594,#30a46c)}
+        .ul{position:fixed;height:2px;border-radius:1px;pointer-events:none;opacity:.9}
+        .card{position:fixed;display:none;width:300px;box-sizing:border-box;padding:10px 12px;border-radius:12px;
+          font:13px/1.4 "Segoe UI",system-ui,sans-serif;color:#e8eefc;background:#0b1633;border:1px solid #1c2d58;
+          box-shadow:0 10px 30px rgba(0,0,0,.45);pointer-events:auto}
+        .card .t{display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:4px}
+        .card .d{display:inline-block;width:8px;height:8px;border-radius:50%}
+        .card del{color:#ff8a92}.card ins{color:#5fe0a6;text-decoration:none;font-weight:600}
+        .card .x{color:#a5b4d8;font-size:12px;margin-top:4px}
+        .card .a{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+        .card .a span{all:unset;cursor:pointer;padding:4px 10px;border-radius:7px;font-size:12px;background:#1a2c57;color:#e8eefc}
+        .card .a span:hover{background:#243a70}
+        .card .a span.ok{background:linear-gradient(135deg,#3d8bff,#38d0f5);color:#fff}`);
       shadow.adoptedStyleSheets = [sheet];
     } catch (e) {}
     badge = document.createElement('button');
@@ -652,6 +669,14 @@
     badge.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
     badge.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openAssist(); });
     shadow.appendChild(badge);
+    marks = document.createElement('div');
+    shadow.appendChild(marks);
+    card = document.createElement('div');
+    card.className = 'card';
+    card.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+    card.addEventListener('mouseleave', () => hideCard(400));
+    card.addEventListener('mouseenter', () => clearTimeout(cardTimer));
+    shadow.appendChild(card);
     document.documentElement.appendChild(host);
   }
   function placeBadge(el) {
@@ -684,6 +709,7 @@
     if (!isEditable(el)) { return; }
     lastEditable = el;
     hideBadge();
+    clearMarks();
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       if (!runtime.assist) return;
@@ -696,9 +722,14 @@
         badge.textContent = '…';
         invoke('mnemo_assist_check', { text: text.slice(0, 20000) }).then((res) => {
           if (editableText(el) !== text) return;
-          const n = (res && res.issues) || 0;
+          const list = (res && Array.isArray(res.issues)) ? res.issues : [];
+          const n = list.length;
           badge.className = n ? 'issues' : 'clean';
           badge.textContent = n ? String(Math.min(n, 99)) : '✓';
+          badge.title = (n ? n + ' gợi ý' : 'Không thấy lỗi') + (res && res.score != null ? ' · điểm ' + res.score : '') + ' – bấm để mở trợ lý viết';
+          issues = list;
+          issuesEl = el;
+          drawMarks();
         }).catch(() => { badge.className = ''; badge.textContent = 'M'; });
       }
     }, 1200);
@@ -714,6 +745,140 @@
       if (isEditable(el)) { lastEditable = el; e.preventDefault(); e.stopPropagation(); openAssist(); }
     }
   }, true);
+
+  // ---------- underlines and the suggestion card ----------
+  function textNodes(root) {
+    const out = [];
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) out.push(n);
+    return out;
+  }
+  // A Range over the first occurrence of `needle` in the box's text (across text nodes).
+  function rangeOf(root, needle) {
+    if (!root || !needle || root.tagName === 'TEXTAREA' || root.tagName === 'INPUT') return null;
+    const nodes = textNodes(root);
+    let full = '';
+    const starts = [];
+    nodes.forEach((n) => { starts.push(full.length); full += n.nodeValue.replace(/\u00a0/g, ' '); });
+    const at = full.indexOf(needle.replace(/\u00a0/g, ' '));
+    if (at < 0) return null;
+    const end = at + needle.length;
+    // Start: the node holding character `off`; end: the node holding the character before it.
+    const pos = (off, isEnd) => {
+      for (let i = 0; i < nodes.length; i++) {
+        const len = nodes[i].nodeValue.length;
+        if (isEnd ? off > starts[i] && off <= starts[i] + len : off >= starts[i] && off < starts[i] + len) {
+          return [nodes[i], off - starts[i]];
+        }
+      }
+      return null;
+    };
+    const r = document.createRange();
+    const a = pos(at, false), b = pos(end, true);
+    if (!a || !b) return null;
+    try { r.setStart(a[0], a[1]); r.setEnd(b[0], b[1]); } catch (e) { return null; }
+    return r;
+  }
+  function clearMarks() {
+    issues = [];
+    if (marks) marks.innerHTML = '';
+    hideCard(0);
+  }
+  function drawMarks() {
+    if (!marks) return;
+    marks.innerHTML = '';
+    if (!issuesEl || !document.contains(issuesEl)) return;
+    const box = issuesEl.getBoundingClientRect();
+    issues.forEach((it, idx) => {
+      const r = rangeOf(issuesEl, it.original);
+      if (!r) return;
+      it._rects = Array.from(r.getClientRects()).filter((c) => c.width > 0);
+      it._rects.forEach((c) => {
+        if (c.bottom < box.top - 2 || c.top > box.bottom + 2) return;
+        const u = document.createElement('div');
+        u.className = 'ul';
+        u.style.cssText = `left:${c.left}px;top:${c.bottom - 1}px;width:${c.width}px;background:${CAT_COLOR[it.category] || '#f03c45'}`;
+        u.dataset.i = idx;
+        marks.appendChild(u);
+      });
+    });
+  }
+  function hideCard(delay) {
+    clearTimeout(cardTimer);
+    cardTimer = setTimeout(() => { if (card) card.style.display = 'none'; shownIssue = null; }, delay);
+  }
+  function showCard(it, rect) {
+    clearTimeout(cardTimer);
+    if (shownIssue === it && card.style.display === 'block') return;
+    shownIssue = it;
+    const color = CAT_COLOR[it.category] || '#f03c45';
+    const e = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    card.innerHTML = `<div class="t"><span class="d" style="background:${color}"></span>${e(it.title || CAT_NAME[it.category] || '')}</div>
+      <div><del>${e(it.original)}</del> → <ins>${it.replacement ? e(it.replacement) : '(xóa)'}</ins></div>
+      ${it.explanation ? `<div class="x">${e(it.explanation)}</div>` : ''}
+      <div class="a"><span class="ok" data-a="accept">Chấp nhận</span><span data-a="dismiss">Bỏ qua</span><span data-a="learn">Thêm vào từ điển</span></div>`;
+    card.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); act(it, b.dataset.a); }));
+    card.style.display = 'block';
+    const w = 300, h = card.offsetHeight || 120;
+    let x = Math.min(window.innerWidth - w - 8, Math.max(8, rect.left));
+    let y = rect.top - h - 8;
+    if (y < 8) y = rect.bottom + 8;
+    card.style.left = x + 'px';
+    card.style.top = y + 'px';
+  }
+  function act(it, what) {
+    const el = issuesEl;
+    hideCard(0);
+    if (what === 'learn') invoke('mnemo_assist_learn', { word: it.original }).catch(() => {});
+    if (what === 'accept' && el && document.contains(el)) {
+      const r = rangeOf(el, it.original);
+      if (r) {
+        el.focus();
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+        if (!document.execCommand('insertText', false, it.replacement || '')) {
+          r.deleteContents();
+          if (it.replacement) r.insertNode(document.createTextNode(it.replacement));
+          el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: it.replacement }));
+        }
+      }
+    }
+    // Typing cleared the list; keep the other suggestions on screen.
+    const rest = (what === 'accept' ? issuesCopy : issues).filter((x) => x !== it && x.original !== it.original);
+    issues = rest;
+    issuesEl = el;
+    lastChecked = editableText(el);
+    clearTimeout(idleTimer);
+    drawMarks();
+    if (el && document.contains(el)) placeBadge(el);
+    if (badge) {
+      badge.className = rest.length ? 'issues' : 'clean';
+      badge.textContent = rest.length ? String(rest.length) : '✓';
+    }
+  }
+  let issuesCopy = [];
+  document.addEventListener('mousemove', (e) => {
+    if (!issues.length || !card) return;
+    if (card.style.display === 'block') {
+      const r = card.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return;
+    }
+    for (const it of issues) {
+      for (const c of it._rects || []) {
+        if (e.clientX >= c.left - 1 && e.clientX <= c.right + 1 && e.clientY >= c.top - 2 && e.clientY <= c.bottom + 3) {
+          issuesCopy = issues.slice();
+          showCard(it, c);
+          return;
+        }
+      }
+    }
+    if (shownIssue) hideCard(500);
+  }, true);
+  const redraw = () => { if (issues.length) drawMarks(); };
+  window.addEventListener('scroll', redraw, true);
+  window.addEventListener('resize', redraw);
 
   function composeTarget() {
     if (lastEditable && document.contains(lastEditable)) return lastEditable;

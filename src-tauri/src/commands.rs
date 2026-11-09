@@ -79,6 +79,7 @@ pub async fn add_account(
     state: State<'_, AppState>,
     service: String,
     label: String,
+    share_with: Option<String>,
 ) -> Result<Account, String> {
     let service = ServiceId::parse(&service).ok_or("Dịch vụ không hợp lệ")?;
     let account = {
@@ -100,7 +101,18 @@ pub async fn add_account(
             ..Account::default()
         };
         s.accounts.push(account.clone());
-        if s.share_processes {
+        // "Continue with" a Facebook/Instagram account already in Mnemo: same browser data.
+        let linked = match share_with.filter(|w| !w.is_empty()) {
+            Some(with) => match crate::profiles::link(&mut s, &account.id, &with) {
+                Ok(()) => true,
+                Err(e) => {
+                    s.accounts.retain(|a| a.id != account.id);
+                    return Err(e);
+                }
+            },
+            None => false,
+        };
+        if s.share_processes && !linked {
             crate::profiles::assign(&mut s, &account.id);
         }
         save(&state, &s)?;
@@ -668,6 +680,41 @@ pub fn apply_autostart(app: &AppHandle, state: &AppState, enabled: bool) -> Resu
     let mut s = lock(&state.settings);
     s.start_with_windows = enabled;
     save(&state, &s)
+}
+
+/// Turns an account off for now (its page closes and stops using memory; the sign-in stays
+/// on disk) or back on (its page opens again, already signed in).
+#[tauri::command]
+pub async fn set_account_enabled(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    {
+        let mut s = lock(&state.settings);
+        let a = s
+            .accounts
+            .iter_mut()
+            .find(|a| a.id == id)
+            .ok_or("Không tìm thấy tài khoản")?;
+        a.disabled = !enabled;
+        save(&state, &s)?;
+    }
+    if enabled {
+        if let Some(a) = state.settings().account(&id).cloned() {
+            let wv = webviews::ensure_account(&app, &a)?;
+            webviews::park(&app, &wv);
+        }
+    } else {
+        webviews::close_account(&app, &id);
+        lock(&state.unread).remove(&id);
+        lock(&state.page_unread).remove(&id);
+        lock(&state.notices).retain(|n| n.account != id);
+    }
+    crate::notify::update_taskbar(&app);
+    let _ = app.emit_to(webviews::SHELL, "accounts", &id);
+    Ok(())
 }
 
 /// Turns sharing on (every existing account joins a group, then Mnemo restarts so the

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-assist-learn"
+description = "Enables the mnemo_assist_learn command without any pre-configured scope."
+commands.allow = ["mnemo_assist_learn"]
+
+[[permission]]
+identifier = "deny-mnemo-assist-learn"
+description = "Denies the mnemo_assist_learn command without any pre-configured scope."
+commands.deny = ["mnemo_assist_learn"]

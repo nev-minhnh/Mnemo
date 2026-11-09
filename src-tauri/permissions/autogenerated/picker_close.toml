@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-picker-close"
+description = "Enables the picker_close command without any pre-configured scope."
+commands.allow = ["picker_close"]
+
+[[permission]]
+identifier = "deny-picker-close"
+description = "Denies the picker_close command without any pre-configured scope."
+commands.deny = ["picker_close"]

@@ -18,6 +18,8 @@ async function refresh() {
 }
 
 function accounts() { return (S && S.settings.accounts) || []; }
+// Accounts that are on (a turned-off one has no page and stays off the bar).
+function activeAccounts() { return accounts().filter((a) => !a.disabled); }
 function accountById(id) { return accounts().find((a) => a.id === id); }
 
 // ---------------------------------------------------------------- sidebar
@@ -64,7 +66,7 @@ function renderSidebar() {
     `<button class="side-item ${extra || ''} ${!visible && page === id ? 'active' : ''}" data-page="${id}" title="${label}">${ICON[icon]}<span class="side-label">${label}</span></button>`;
   // On a horizontal bar the add button stays outside the scrolling row, always in view.
   const addBtn = `<button class="acc-row add" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>`;
-  const total = accounts().reduce((n, a) => n + ((S.unread || {})[a.id] || 0), 0);
+  const total = activeAccounts().reduce((n, a) => n + ((S.unread || {})[a.id] || 0), 0);
   sb.innerHTML = `
     <div class="side-head">
       <img class="logo" src="logo.png" alt="Mnemo" data-page="home" title="Mnemo – Every chat in sight, locked safe and tight.">
@@ -72,7 +74,7 @@ function renderSidebar() {
     </div>
     <div class="side-section side-label">Tài khoản</div>
     <div class="accounts scroll">
-      ${accounts().map((a) => {
+      ${activeAccounts().map((a) => {
         const n = (S.unread || {})[a.id] || 0;
         return `<button class="acc-row ${visible === a.id ? 'active' : ''}" data-acc="${esc(a.id)}" title="${esc(SERVICE_NAME[a.service])} · ${esc(a.label)}${n ? ` · ${n} chưa đọc` : ''} (chuột phải: cài đặt · kéo để đổi thứ tự)">
           <span class="acc-avatar">${avatarHtml(a, 38)}${n && compact ? `<span class="count">${n > 99 ? '99+' : n}</span>` : ''}</span>
@@ -85,7 +87,6 @@ function renderSidebar() {
     ${barHorizontal() ? `<div class="add-fixed">${addBtn}</div>` : ''}
     <div class="side-nav">
       <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${barHorizontal() ? (compact ? '»' : '«') : (compact !== (barPos() === 'right') ? '›' : '‹')}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
-      ${nav('home', 'home', 'Trang chủ')}
       ${`<button class="side-item ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>`}
       ${nav('archive', 'archive', 'Kho tin nhắn')}
       ${nav('media', 'media', 'Tệp đã lưu')}
@@ -99,7 +100,11 @@ function renderSidebar() {
     b.addEventListener('contextmenu', (e) => { e.preventDefault(); openPage('account:' + b.dataset.acc); });
   });
   sb.querySelector('[data-panel]').addEventListener('click', () => togglePanel());
-  sb.querySelector('[data-add]').addEventListener('click', () => pickApp());
+  sb.querySelector('[data-add]').addEventListener('click', (e) => {
+    // A popover next to the + button, over whatever is open (no trip to the home page).
+    const r = e.currentTarget.getBoundingClientRect();
+    invoke('open_picker', { rect: { x: r.left, y: r.top, width: r.width, height: r.height } }).catch((err) => toast(errText(err), true));
+  });
   // On a horizontal bar the mouse wheel scrolls the accounts sideways.
   const list = sb.querySelector('.accounts');
   if (barHorizontal()) list.addEventListener('wheel', (e) => {
@@ -195,6 +200,7 @@ window.addEventListener('pointerup', async () => {
   // The click that ends a drag must not also open the account.
   r.justDropped = true;
   setTimeout(() => { r.justDropped = false; }, 0);
+  // Turned-off accounts aren't on the bar; they keep their place after the visible ones.
   const ids = Array.from(list.querySelectorAll('.acc-row[data-acc]')).map((x) => x.dataset.acc);
   const byId = new Map(accounts().map((a) => [a.id, a]));
   S.settings.accounts = ids.map((id) => byId.get(id)).filter(Boolean).concat(accounts().filter((a) => !ids.includes(a.id)));
@@ -235,6 +241,16 @@ async function pickApp() {
     close();
     addAccount(b.dataset.svc);
   }));
+}
+
+async function setEnabled(id, enabled, btn) {
+  if (btn) { btn.disabled = true; btn.insertAdjacentHTML('afterbegin', '<span class="spinner"></span>'); }
+  try {
+    await invoke('set_account_enabled', { id, enabled });
+    await refresh();
+    if (page === 'home' || page === 'account:' + id) await renderMain();
+    toast(enabled ? 'Đã kích hoạt lại' : 'Đã tạm tắt tài khoản');
+  } catch (e) { toast(errText(e), true); if (btn) btn.disabled = false; }
 }
 
 async function showAccount(id) {
@@ -296,6 +312,13 @@ function renderHome(main) {
         const stats = (S.stats || {})[a.id] || {};
         const kept = (st && st.accounts && st.accounts[a.id]) || {};
         const n = (S.unread || {})[a.id] || 0;
+        if (a.disabled) {
+          return `<div class="card svc-card off" title="Đã tạm tắt: không chạy, không tốn bộ nhớ; vẫn giữ đăng nhập">
+            <div class="row">${avatarHtml(a, 42)}<div class="grow"><div class="small muted">${SERVICE_NAME[a.service]} · đã tạm tắt</div><b class="ellipsis" data-noi18n>${esc(a.label)}</b></div></div>
+            <div class="small muted">Không chạy, không nhận tin hay thông báo. Đăng nhập vẫn được giữ.</div>
+            <div class="row"><button class="btn sm gold" data-enable="${esc(a.id)}">Kích hoạt lại</button></div>
+          </div>`;
+        }
         return `<div class="card svc-card">
           <div class="row">${avatarHtml(a, 42)}<div class="grow"><div class="small muted">${SERVICE_NAME[a.service]}</div><b class="ellipsis" data-noi18n>${esc(a.label)}</b></div>
           ${n ? `<span class="badge danger">${n} chưa đọc</span>` : ''}</div>
@@ -307,7 +330,7 @@ function renderHome(main) {
           <div class="small muted">${a.capture && S.settings.capture_enabled
             ? `Đang lưu tin nhắn${stats.messages || stats.media ? ` · phiên này +${stats.messages || 0} tin, +${stats.media || 0} tệp` : ''}${kept.last_ts ? ` · tin mới nhất ${fmtTime(kept.last_ts)}` : ''}`
             : 'Không lưu tin nhắn'}</div>
-          <div class="row"><button class="btn sm primary" data-open="${esc(a.id)}">Mở</button><button class="btn sm" data-acc-page="${esc(a.id)}">Cài đặt</button></div>
+          <div class="row"><button class="btn sm primary" data-open="${esc(a.id)}">Mở</button><button class="btn sm" data-acc-page="${esc(a.id)}">Cài đặt</button><span class="grow"></span><button class="btn sm ghost" data-disable="${esc(a.id)}" title="Tạm tắt: đóng trang để không tốn tài nguyên, vẫn giữ đăng nhập">Tạm tắt</button></div>
         </div>`;
       }).join('')}</div></div>` : ''}
     <div class="section" id="add-accounts"><h2>Thêm tài khoản</h2>
@@ -322,6 +345,8 @@ function renderHome(main) {
     </div>
   </div>`;
   main.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => showAccount(b.dataset.open)));
+  main.querySelectorAll('[data-enable]').forEach((b) => b.addEventListener('click', () => setEnabled(b.dataset.enable, true, b)));
+  main.querySelectorAll('[data-disable]').forEach((b) => b.addEventListener('click', () => setEnabled(b.dataset.disable, false, b)));
   main.querySelectorAll('[data-acc-page]').forEach((b) => b.addEventListener('click', () => openPage('account:' + b.dataset.accPage)));
   main.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); openPage(b.dataset.goto); }));
   main.querySelectorAll('[data-add-svc]').forEach((b) => b.addEventListener('click', () => addAccount(b.dataset.addSvc)));
@@ -954,6 +979,8 @@ function renderAccount(main, id) {
       <button class="btn" id="acc-sleep" title="Đóng trang để giải phóng bộ nhớ; mở lại khi bấm vào">Cho ngủ</button>
       <button class="btn" id="acc-devtools">DevTools</button>
       <button class="btn" id="acc-up">↑ Lên</button><button class="btn" id="acc-down">↓ Xuống</button>
+      <span class="grow"></span>
+      ${a.disabled ? '<button class="btn gold" id="acc-toggle">Kích hoạt lại</button>' : '<button class="btn" id="acc-toggle" title="Đóng trang để không tốn tài nguyên; vẫn giữ đăng nhập, bật lại là dùng ngay">Tạm tắt tài khoản</button>'}
     </div></div>
     <div class="section"><h2>Xóa tài khoản</h2><div class="card pad col">
       <div class="small muted">Tin nhắn và tệp đã lưu vẫn ở trong kho. Nếu chọn xóa dữ liệu đăng nhập, lần sau phải đăng nhập lại.</div>
@@ -988,6 +1015,7 @@ function renderAccount(main, id) {
   $('#acc-reload').addEventListener('click', () => invoke('reload_account', { id: a.id }).then(() => toast('Đã tải lại')).catch((e) => toast(errText(e), true)));
   $('#acc-sleep').addEventListener('click', () => invoke('sleep_account', { id: a.id }).then(() => toast('Đã cho ngủ')));
   $('#acc-devtools').addEventListener('click', async () => { try { await invoke('show_account', { id: a.id }); visible = a.id; renderSidebar(); await invoke('open_devtools', { id: a.id }); } catch (e) { toast(errText(e), true); } });
+  $('#acc-toggle').addEventListener('click', (e) => setEnabled(a.id, !!a.disabled, e.currentTarget));
   $('#acc-up').addEventListener('click', async () => { await invoke('move_account', { id: a.id, delta: -1 }); await refresh(); });
   $('#acc-down').addEventListener('click', async () => { await invoke('move_account', { id: a.id, delta: 1 }); await refresh(); });
   $('#acc-remove').addEventListener('click', async () => {

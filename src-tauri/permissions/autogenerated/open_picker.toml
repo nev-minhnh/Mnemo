@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-picker"
+description = "Enables the open_picker command without any pre-configured scope."
+commands.allow = ["open_picker"]
+
+[[permission]]
+identifier = "deny-open-picker"
+description = "Denies the open_picker command without any pre-configured scope."
+commands.deny = ["open_picker"]

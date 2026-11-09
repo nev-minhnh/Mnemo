@@ -138,6 +138,9 @@ pub struct Account {
     /// shared group (`shared-0`, `shared-1`…) whose accounts run in one browser process.
     #[serde(default)]
     pub profile: String,
+    /// Turned off for now: no page, no memory, no notifications; the sign-in stays on disk.
+    #[serde(default)]
+    pub disabled: bool,
 }
 
 impl Default for Account {
@@ -151,6 +154,7 @@ impl Default for Account {
             rules: None,
             notify: true,
             profile: String::new(),
+            disabled: false,
         }
     }
 }
@@ -267,6 +271,35 @@ pub struct AiSettings {
     pub max_context_messages: u32,
     /// Extra standing instructions for every request (tone, language…).
     pub personal_instructions: String,
+    /// What the messages are for: the writing assistant checks drafts against these.
+    pub goals: WritingGoals,
+    /// Words the writing assistant never flags (names, slang, brand words…).
+    pub dictionary: Vec<String>,
+}
+
+/// Writing goals for chat drafts (as Grammarly's goals, made for messages).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct WritingGoals {
+    /// "casual", "neutral" or "formal".
+    pub formality: String,
+    /// "general", "friends", "family", "colleagues", "customers", "boss".
+    pub audience: String,
+    /// "chat", "inform", "request", "persuade", "apologise", "thank".
+    pub intent: String,
+    /// "auto" (the draft's own), "vi", "en-US", "en-GB".
+    pub variant: String,
+}
+
+impl Default for WritingGoals {
+    fn default() -> Self {
+        WritingGoals {
+            formality: "neutral".into(),
+            audience: "general".into(),
+            intent: "chat".into(),
+            variant: "auto".into(),
+        }
+    }
 }
 
 impl Default for AiSettings {
@@ -282,6 +315,8 @@ impl Default for AiSettings {
             skills: default_skills(),
             max_context_messages: 400,
             personal_instructions: String::new(),
+            goals: WritingGoals::default(),
+            dictionary: vec![],
         }
     }
 }

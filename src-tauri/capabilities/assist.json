@@ -11,6 +11,8 @@
     "allow-assist-run",
     "allow-assist-apply",
     "allow-assist-close",
-    "allow-assist-save-choice"
+    "allow-assist-save-choice",
+    "allow-assist-learn",
+    "allow-assist-save-goals"
   ]
 }

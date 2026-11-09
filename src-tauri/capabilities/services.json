@@ -34,6 +34,7 @@
     "allow-mnemo-media-url",
     "allow-mnemo-assist-open",
     "allow-mnemo-assist-check",
+    "allow-mnemo-assist-learn",
     "allow-mnemo-profile",
     "allow-mnemo-notify"
   ]

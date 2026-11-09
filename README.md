@@ -19,7 +19,9 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 **Thanh bên, thông báo, khay hệ thống**
 - Thanh bên Mnemo đặt được **trái, phải, trên cùng hoặc dưới cùng** (Cài đặt → Giao diện). Đặt bên phải thì thanh điều hướng riêng của WhatsApp, Discord… nằm sát mép trái cửa sổ; trên/dưới thì thanh nằm ngang như các tab.
 - Trang chủ hiện số liệu thật của kho: hội thoại có ít nhất một tin, tin nhắn (không tính dòng hệ thống và tin đã thu hồi), tệp đã lưu (tệp trùng chỉ tính một lần); mỗi tài khoản có số riêng, cộng thêm số lưu được trong phiên này.
-- **Kéo thả** tài khoản trên thanh bên để đổi thứ tự. Nút **Thêm tài khoản** cuối danh sách mở bảng chọn 10 ứng dụng.
+- **Kéo thả** tài khoản trên thanh bên để đổi thứ tự. Nút **+** mở bảng chọn 10 ứng dụng ngay cạnh nút, đè lên trang đang mở. Bấm logo để về trang chủ.
+- **Dùng chung đăng nhập Meta:** khi thêm Instagram có thể dùng luôn tài khoản Messenger (Instagram hiện "Tiếp tục với tư cách…"), khi thêm Threads có thể dùng luôn tài khoản Instagram; các tài khoản này chạy chung dữ liệu trình duyệt.
+- **Tạm tắt tài khoản:** tài khoản tạm tắt không chạy, không tốn RAM, không nhận tin hay thông báo và không hiện trên thanh Mnemo; ở trang chủ nó hiện màu xám với nút **Kích hoạt lại**. Đăng nhập vẫn được giữ nên bật lại là dùng ngay.
 - Mỗi tài khoản hiện **avatar của bạn trong app** (tự lấy từ trang nếu được, hoặc ảnh bạn chọn), có icon nhỏ của app ở góc dưới phải. Bên cạnh là tên app ở trên, tên tài khoản ở dưới, và số tin chưa đọc. Thanh bên thu gọn được, chỉ còn avatar.
 - **Thông báo tin mới của Mnemo** ở góc phải dưới màn hình, gồm: dòng đầu "Tên app - tên tài khoản" (màu vàng) và giờ, dòng hai tên người gửi in đậm, dòng ba nội dung.
   - Khi app không gửi thông báo riêng mà chỉ tăng số chưa đọc, Mnemo hiện thông báo chung; nếu nhiều người cùng nhắn, dòng From ghi số người và tên (vd "3 người: An, Bình, Chi"), lấy từ các hội thoại đang có dấu chưa đọc trong danh sách chat.
@@ -49,12 +51,11 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 - **Chọn nơi lưu** cho cả kho tin nhắn lẫn thư mục tệp tải về. Có thể bật mã hóa cả tệp đã lưu.
 
 **Trợ lý AI**
-- **Trợ lý viết kiểu Grammarly:** ngừng gõ trong ô soạn tin thì cạnh con trỏ hiện nút **M**. Bấm vào đó hoặc nhấn **Ctrl+Shift+Space** để mở popup:
-  - sửa chính tả, ngữ pháp, cú pháp, dấu câu, dùng từ, văn phong; sửa từng lỗi hoặc tất cả
-  - chạy skills viết lách (lịch sự hơn, ngắn gọn hơn, dịch…), tự thêm skill hoặc nhập từ tệp `SKILL.md`
-  - ô nhập yêu cầu tự do
-  - đổi nhanh provider, model, effort và bật/tắt thinking
-  - xong thì **thay thẳng vào ô soạn tin**
+- **Trợ lý viết kiểu Grammarly** (học từ trợ lý viết của Themisio), **chỉ đọc nội dung trong ô soạn tin**, không bao giờ đọc hay gửi cuộc trò chuyện:
+  - Gợi ý theo 4 nhóm: **Đúng** (chính tả, dấu, ngữ pháp, dấu câu), **Rõ ràng**, **Hấp dẫn**, **Giọng điệu**; có điểm 0–100 và nhận xét giọng điệu so với mục tiêu.
+  - Khi bật "Tự kiểm tra khi ngừng gõ", lỗi được **gạch chân ngay trong ô soạn tin** (màu theo nhóm); rê chuột vào để xem thẻ gợi ý: Chấp nhận, Bỏ qua, Thêm vào từ điển.
+  - Bấm nút **M** cạnh con trỏ hoặc **Ctrl+Shift+Space** để mở popup: tab **Gợi ý**, **Viết với AI** (trang trọng hơn, thân thiện hơn, ngắn gọn, mở rộng, đơn giản, hay hơn, skills, hoặc bảo AI viết từ đầu) và **Mục tiêu** (mức trang trọng, người nhận, mục đích, ngôn ngữ, từ điển riêng).
+  - Đổi nhanh provider, model, effort, thinking; xong thì **thay thẳng vào ô soạn tin**.
 - **Panel AI cho từng ứng dụng:**
   - Với từng hội thoại: **tóm tắt tin chưa xem**, **tóm tắt theo khoảng thời gian**, và **gợi ý câu trả lời** dựa trên tin chưa xem; bấm vào gợi ý thì nó được chèn vào ô soạn, bạn tự bấm gửi.
   - **Hỏi đáp trên nhiều hội thoại** cùng lúc.
@@ -68,7 +69,8 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 ## Tiết kiệm RAM
 
 Mỗi tài khoản là một trình duyệt WebView2. Mnemo giảm RAM bằng ba cách (Cài đặt → Bộ nhớ):
-- **Tự động:** tài khoản không hiển thị được hạ mức dùng bộ nhớ (vẫn chạy, vẫn nhận tin).
+- **Tự động:** tài khoản không hiển thị, và mọi tài khoản khi Mnemo thu về khay hoặc thu nhỏ, được hạ mức dùng bộ nhớ (WebView2 MemoryUsageTargetLevel = Low); trang vẫn chạy, vẫn nhận tin.
+- Không dùng TrySuspend (đóng băng trang) vì trang bị đóng băng không nhận tin hay thông báo; muốn tài khoản không tốn gì thì dùng **Tạm tắt**.
 - **Dùng chung tiến trình trình duyệt:** các tài khoản của các ứng dụng khác nhau chạy chung một bộ trình duyệt (một tiến trình GPU, mạng, lưu trữ… thay vì mỗi tài khoản một bộ). Khi bật lần đầu, tài khoản xếp trước của mỗi nhóm giữ đăng nhập, các tài khoản còn lại đăng nhập lại một lần. Tài khoản mới sau đó tự vào nhóm.
 - **Tắt tăng tốc phần cứng (GPU)** nếu cần bớt thêm.
 

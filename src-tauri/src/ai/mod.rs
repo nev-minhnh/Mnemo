@@ -96,39 +96,153 @@ pub fn extract_json(text: &str) -> Option<Value> {
 
 // ---------------------------------------------------------------- writing popup
 
-const CHECK_SYSTEM: &str = r#"You are a meticulous writing assistant inside a messaging app. Check the user's draft chat message for spelling, grammar, syntax, punctuation, word choice and style problems. The draft may be Vietnamese, English or mixed: keep its language, tone and meaning; never translate it. Keep emoji, names, links, numbers and line breaks.
-Return ONLY a JSON object, no other text:
-{"corrected": "<the full corrected draft>", "issues": [{"type": "spelling|grammar|syntax|punctuation|word_choice|style", "original": "<exact substring of the draft>", "suggestion": "<its replacement>", "explanation": "<one short sentence in Vietnamese>"}]}
-If nothing needs fixing, return the draft unchanged with an empty issues list. Only report real problems."#;
+// What the writing assistant reads is only the draft in the app's message box: never the
+// conversation above it, the chat list or anything else on the page.
 
-fn rewrite_system(instruction: &str) -> String {
+/// The four kinds of suggestion (after Grammarly): errors first, then style.
+const CATEGORIES: [&str; 4] = ["correctness", "clarity", "engagement", "delivery"];
+
+fn weight(category: &str) -> f64 {
+    match category {
+        "correctness" => 4.0,
+        "clarity" => 2.0,
+        "delivery" => 1.5,
+        _ => 1.0,
+    }
+}
+
+fn goals_line(g: &crate::settings::WritingGoals) -> String {
+    let variant = match g.variant.as_str() {
+        "vi" => "Vietnamese",
+        "en-US" => "American English",
+        "en-GB" => "British English",
+        _ => "the draft's own language",
+    };
     format!(
-        "You rewrite a draft chat message for the user.\n{instruction}\nReturn only the new message text: no quotes, no labels, no explanations."
+        "Goals for this message: formality {}; audience {}; intent {}; language variety {variant}.",
+        g.formality, g.audience, g.intent
     )
 }
 
-const REQUEST_SYSTEM: &str = "You help the user write a chat message. Follow their request about the draft. If the request asks for a new or changed message, return only that message text (no quotes, no explanations). If it asks a question about the draft, answer briefly in Vietnamese.";
+fn check_system(s: &Settings) -> String {
+    let ui = if s.language == "en" {
+        "English"
+    } else {
+        "Vietnamese"
+    };
+    let mut p = format!(
+        "You are an expert editor inside a messaging app, working like Grammarly. You get ONE draft chat message the user is about to send (nothing else). Review it against four criteria:\n\
+         - correctness: spelling, missing diacritics, grammar, punctuation, wrong or missing words (these are errors);\n\
+         - clarity: wordy, vague or hard-to-follow phrasing — suggest a concise rewrite;\n\
+         - engagement: flat, repeated or overused words — suggest livelier words;\n\
+         - delivery: tone or formality that misses the goals, impolite or overly blunt phrasing.\n\
+         {goals}\n\
+         Keep the draft's language (never translate), its meaning, emoji, names, links, numbers and line breaks. Chat is informal by nature: do not flag casual style that fits the goals, and only report real problems.\n\
+         Reply with JSON only, no prose and no code fence:\n\
+         {{\"corrected\": \"<the full draft with every correctness fix applied>\", \"issues\": [{{\"category\": \"correctness|clarity|engagement|delivery\", \"type\": \"spelling|grammar|punctuation|word choice|wordiness|repetition|tone|…\", \"title\": \"<a short action in {ui}, e.g. Correct the spelling>\", \"original\": \"<exact substring of the draft>\", \"replacement\": \"<its replacement; empty to delete>\", \"explanation\": \"<one short sentence in {ui}>\"}}], \"tone\": \"<the draft's tone in 1–3 words, in {ui}>\", \"tone_fits\": true}}\n\
+         \"original\" is copied character for character from the draft and is as short as possible while unique. At most 10 issues, most important first.",
+        goals = goals_line(&s.ai.goals)
+    );
+    if !s.ai.dictionary.is_empty() {
+        p.push_str(&format!(
+            "\nNever flag these words (the user's dictionary): {}.",
+            s.ai.dictionary.join(", ")
+        ));
+    }
+    p
+}
+
+fn rewrite_system(instruction: &str, s: &Settings) -> String {
+    format!(
+        "You rewrite a draft chat message for the user.\n{instruction}\n{}\nReturn only the new message text: no quotes, no labels, no explanations.",
+        goals_line(&s.ai.goals)
+    )
+}
+
+const REQUEST_SYSTEM: &str = "You help the user write a chat message (like GrammarlyGO). You only see their draft, never the conversation. Follow their request about the draft. If the request asks for a new or changed message, return only that message text (no quotes, no explanations). If it asks a question about the draft, answer briefly in Vietnamese.";
+
+/// Keeps only usable suggestions (their text really is in the draft, no repeats, not in
+/// the dictionary), adds a 0–100 score and returns the whole result.
+fn clean_check(v: &mut Value, text: &str, dictionary: &[String]) {
+    let dict: Vec<String> = dictionary.iter().map(|w| w.to_lowercase()).collect();
+    let mut seen: Vec<String> = vec![];
+    let mut out = vec![];
+    for i in v["issues"].as_array().cloned().unwrap_or_default() {
+        let original = i["original"].as_str().unwrap_or("").to_string();
+        // Older answers used "suggestion".
+        let replacement = i["replacement"]
+            .as_str()
+            .or_else(|| i["suggestion"].as_str())
+            .unwrap_or("")
+            .to_string();
+        if original.is_empty()
+            || original == replacement
+            || !text.contains(&original)
+            || seen.contains(&original)
+            || dict.contains(&original.trim().to_lowercase())
+        {
+            continue;
+        }
+        seen.push(original.clone());
+        let category = i["category"].as_str().unwrap_or("").to_lowercase();
+        let category = if CATEGORIES.contains(&category.as_str()) {
+            category
+        } else {
+            "correctness".to_string()
+        };
+        out.push(json!({
+            "category": category,
+            "type": i["type"].as_str().unwrap_or(""),
+            "title": i["title"].as_str().unwrap_or(""),
+            "original": original,
+            "replacement": replacement,
+            "suggestion": replacement,
+            "explanation": i["explanation"].as_str().unwrap_or(""),
+        }));
+        if out.len() >= 12 {
+            break;
+        }
+    }
+    // Weighted issues per 100 words, eased: a few slips cost a few points.
+    let words = text.split_whitespace().count().max(12) as f64;
+    let penalty: f64 = out
+        .iter()
+        .map(|i| weight(i["category"].as_str().unwrap_or("")))
+        .sum();
+    let score = (100.0 / (1.0 + penalty * 100.0 / words / 40.0)).round();
+    v["issues"] = json!(out);
+    v["score"] = json!(score);
+    if !v["corrected"].is_string() {
+        v["corrected"] = json!(text);
+    }
+}
 
 pub async fn check_text(state: &AppState, choice: &AiChoice, text: &str) -> Result<Value, String> {
-    let sha = crate::util::sha256_hex(text.as_bytes());
+    let s = state.settings();
+    // Same draft, same goals and dictionary: same answer.
+    let sha = crate::util::sha256_hex(
+        format!(
+            "{text}\u{1}{}\u{1}{}",
+            goals_line(&s.ai.goals),
+            s.ai.dictionary.join(",")
+        )
+        .as_bytes(),
+    );
     if let Some(v) = lock(&state.assist).cache.get(&sha).cloned() {
         return Ok(v);
     }
-    let answer = ask(state, choice, CHECK_SYSTEM, text).await?;
+    let answer = ask(state, choice, &check_system(&s), text).await?;
     let mut v = extract_json(&answer)
         .ok_or("Model không trả về kết quả đúng định dạng. Hãy thử lại hoặc đổi model.")?;
-    if !v.get("corrected").map(|c| c.is_string()).unwrap_or(false) {
-        v["corrected"] = json!(text);
-    }
-    if !v.get("issues").map(|c| c.is_array()).unwrap_or(false) {
-        v["issues"] = json!([]);
-    }
+    clean_check(&mut v, text, &s.ai.dictionary);
     v["kind"] = json!("check");
     let mut a = lock(&state.assist);
     if a.cache.len() > 200 {
         a.cache.clear();
     }
-    a.cache.insert(sha, v.clone());
+    a.cache.insert(sha.clone(), v.clone());
+    a.cache
+        .insert(crate::util::sha256_hex(text.as_bytes()), v.clone());
     Ok(v)
 }
 
@@ -161,7 +275,8 @@ pub async fn mnemo_assist_open(
     Ok(())
 }
 
-/// Called by an app's page when automatic checking is on: number of issues in the draft.
+/// Called by an app's page when automatic checking is on. Gets only the draft in the message
+/// box; returns the suggestions so the page can underline them in place.
 #[tauri::command]
 pub async fn mnemo_assist_check(
     webview: Webview,
@@ -171,17 +286,60 @@ pub async fn mnemo_assist_check(
     let s = state.settings();
     crate::capture::account_for(&webview, &s)?;
     if !s.ai.auto_check {
-        return Ok(json!({ "issues": 0 }));
+        return Ok(json!({ "issues": [] }));
     }
-    let v = check_text(
+    check_text(
         &state,
         &s.ai.writing,
         &crate::util::truncate_chars(&text, 20_000),
     )
-    .await?;
-    Ok(
-        json!({ "issues": v.get("issues").and_then(|i| i.as_array()).map(|a| a.len()).unwrap_or(0) }),
-    )
+    .await
+}
+
+/// "Add to dictionary" from a suggestion card (in the page or in the popup).
+#[tauri::command]
+pub fn mnemo_assist_learn(
+    webview: Webview,
+    state: State<'_, AppState>,
+    word: String,
+) -> Result<(), String> {
+    crate::capture::account_for(&webview, &state.settings())?;
+    learn(&state, &word)
+}
+
+#[tauri::command]
+pub fn assist_learn(state: State<'_, AppState>, word: String) -> Result<(), String> {
+    learn(&state, &word)
+}
+
+fn learn(state: &AppState, word: &str) -> Result<(), String> {
+    let w = crate::util::truncate_chars(word.trim(), 80);
+    if w.is_empty() {
+        return Ok(());
+    }
+    let mut s = lock(&state.settings);
+    if !s.ai.dictionary.iter().any(|x| x.eq_ignore_ascii_case(&w)) {
+        s.ai.dictionary.push(w);
+    }
+    s.save(&state.config_dir).map_err(|e| e.to_string())
+}
+
+/// Writing goals and dictionary changed in the popup.
+#[tauri::command]
+pub fn assist_save_goals(
+    state: State<'_, AppState>,
+    goals: crate::settings::WritingGoals,
+    dictionary: Vec<String>,
+) -> Result<(), String> {
+    let mut s = lock(&state.settings);
+    s.ai.goals = goals;
+    s.ai.dictionary = dictionary
+        .into_iter()
+        .map(|w| crate::util::truncate_chars(w.trim(), 80))
+        .filter(|w| !w.is_empty())
+        .take(2000)
+        .collect();
+    s.save(&state.config_dir).map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -230,6 +388,9 @@ pub fn assist_state(state: State<'_, AppState>) -> Result<Value, String> {
         "cached": cached,
         "theme": s.theme,
         "language": s.language,
+        "goals": s.ai.goals,
+        "dictionary": s.ai.dictionary,
+        "autoCheck": s.ai.auto_check,
     }))
 }
 
@@ -244,7 +405,8 @@ pub async fn assist_run(
 ) -> Result<Value, String> {
     let s = state.settings();
     let text = crate::util::truncate_chars(&text, 20_000);
-    if text.trim().is_empty() {
+    // Writing from a request may start from an empty box; the rest needs a draft.
+    if text.trim().is_empty() && action != "custom" {
         return Err("Chưa có nội dung để xử lý".into());
     }
     let skill: Option<Skill> =
@@ -253,7 +415,13 @@ pub async fn assist_run(
         "check" => check_text(&state, &choice, &text).await,
         "skill" => {
             let skill = skill.ok_or("Không tìm thấy skill")?;
-            let out = ask(&state, &choice, &rewrite_system(&skill.instruction), &text).await?;
+            let out = ask(
+                &state,
+                &choice,
+                &rewrite_system(&skill.instruction, &s),
+                &text,
+            )
+            .await?;
             Ok(json!({ "kind": "text", "text": out, "title": skill.name }))
         }
         _ => {
@@ -261,7 +429,7 @@ pub async fn assist_run(
             if req.trim().is_empty() {
                 return Err("Hãy nhập yêu cầu".into());
             }
-            let mut system = REQUEST_SYSTEM.to_string();
+            let mut system = format!("{REQUEST_SYSTEM}\n{}", goals_line(&s.ai.goals));
             if let Some(k) = skill {
                 system.push_str("\nAlso apply this writing skill: ");
                 system.push_str(&k.instruction);

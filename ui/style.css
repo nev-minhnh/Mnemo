@@ -276,6 +276,9 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 .page-head p { margin: 2px 0 0; }
 .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .svc-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.svc-card.off { background: var(--surface-2); border-style: dashed; }
+.svc-card.off > :not(:last-child) { opacity: .5; filter: grayscale(1); }
+.svc-card.off:hover { transform: none; box-shadow: none; border-color: var(--gold-2); }
 .svc-card:hover { border-color: var(--accent); box-shadow: 0 6px 24px var(--glow); transform: translateY(-1px); }
 .svc-card .svc { width: 40px; height: 40px; font-size: 14px; }
 .hero { position: relative; overflow: hidden; display: flex; align-items: center; gap: 20px; padding: 26px 28px; margin-bottom: 22px; border: 1px solid rgba(110, 150, 255, .22);

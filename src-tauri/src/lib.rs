@@ -131,6 +131,7 @@ pub fn show_main(app: &tauri::AppHandle) {
         let _ = w.unminimize();
         let _ = w.set_focus();
     }
+    webviews::layout(app);
 }
 
 /// The tray menu in the interface language.
@@ -267,9 +268,9 @@ pub fn run() {
 
             let handle = app.handle().clone();
             window.on_window_event(move |e| match e {
-                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                    webviews::layout(&handle)
-                }
+                WindowEvent::Resized(_)
+                | WindowEvent::ScaleFactorChanged { .. }
+                | WindowEvent::Focused(true) => webviews::layout(&handle),
                 WindowEvent::CloseRequested { api, .. } => {
                     if handle.state::<AppState>().settings().close_to_tray {
                         api.prevent_close();
@@ -277,6 +278,7 @@ pub fn run() {
                             let _ = w.hide();
                         }
                         webviews::hide_assist(&handle);
+                        webviews::layout(&handle);
                     } else {
                         handle.exit(0);
                     }
@@ -291,7 +293,7 @@ pub fn run() {
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(800));
                 let accounts = handle.state::<AppState>().settings().accounts;
-                for (i, a) in accounts.iter().enumerate() {
+                for (i, a) in accounts.iter().filter(|a| !a.disabled).enumerate() {
                     // Created from this worker thread: creating a webview from the main
                     // thread's own callbacks waits on the main thread and freezes the window.
                     let _ = i;
@@ -335,6 +337,9 @@ pub fn run() {
             capture::mnemo_media_url,
             ai::mnemo_assist_open,
             ai::mnemo_assist_check,
+            ai::mnemo_assist_learn,
+            ai::assist_learn,
+            ai::assist_save_goals,
             // writing popup
             ai::assist_state,
             ai::assist_run,
@@ -347,6 +352,10 @@ pub fn run() {
             commands::add_account,
             commands::update_account,
             commands::move_account,
+            commands::set_account_enabled,
+            webviews::open_picker,
+            webviews::picker_state,
+            webviews::picker_close,
             commands::share_processes,
             commands::restart_app,
             commands::reorder_accounts,

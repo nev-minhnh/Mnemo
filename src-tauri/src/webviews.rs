@@ -133,6 +133,8 @@ pub fn layout(app: &AppHandle) {
         .as_deref()
         .map(label_for);
     let (pos, size) = account_rect(app, &window);
+    // Mnemo in the tray or minimised: every page goes to low memory, the shown one too.
+    let away = !window.is_visible().unwrap_or(true) || window.is_minimized().unwrap_or(false);
     for wv in app.webviews().values() {
         if !wv.label().starts_with("acc-") {
             continue;
@@ -150,7 +152,7 @@ pub fn layout(app: &AppHandle) {
         } else {
             let _ = wv.set_position(parked(&size));
         }
-        memory_level(wv, !shown);
+        memory_level(wv, away || !shown);
     }
 }
 
@@ -381,6 +383,9 @@ pub fn show_account(app: &AppHandle, account_id: &str) -> Result<(), String> {
         .account(account_id)
         .cloned()
         .ok_or("Không tìm thấy tài khoản")?;
+    if account.disabled {
+        return Err("Tài khoản đang tạm tắt. Bật lại trong trang chủ.".into());
+    }
     let wv = ensure_account(app, &account)?;
     *lock(&state.visible) = Some(account_id.to_string());
     // The others are parked, not hidden, so their pages keep running.
@@ -481,6 +486,123 @@ pub fn show_assist(
 pub fn hide_assist(app: &AppHandle) {
     if let Some(p) = app.get_webview_window(ASSIST) {
         let _ = p.hide();
+    }
+}
+
+// ---------------------------------------------------------------- Add account popover
+
+pub const PICKER: &str = "picker";
+const PICKER_W: f64 = 584.0;
+const PICKER_H: f64 = 330.0;
+/// Where the popover was last placed (its page asks when it first loads).
+static PICKER_PLACE: std::sync::Mutex<Option<serde_json::Value>> = std::sync::Mutex::new(None);
+
+#[derive(serde::Deserialize, Clone, Copy, Debug)]
+pub struct ButtonRect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+/// Opens the Add account popover next to the sidebar's + button. It is its own small window,
+/// so it shows over the open account's page instead of sending you back to the home page.
+#[tauri::command]
+pub async fn open_picker(app: AppHandle, rect: ButtonRect) -> Result<(), String> {
+    let window = app.get_window(MAIN).ok_or("no main window")?;
+    let picker = match app.get_webview_window(PICKER) {
+        Some(p) => p,
+        None => {
+            let p = tauri::WebviewWindowBuilder::new(
+                &app,
+                PICKER,
+                WebviewUrl::App("picker.html".into()),
+            )
+            .title("Mnemo – thêm tài khoản")
+            .inner_size(PICKER_W, PICKER_H)
+            .decorations(false)
+            .transparent(true)
+            .resizable(false)
+            .skip_taskbar(true)
+            .always_on_top(true)
+            .shadow(false)
+            .visible(false)
+            .build()
+            .map_err(|e| e.to_string())?;
+            let handle = app.clone();
+            p.on_window_event(move |e| {
+                if let tauri::WindowEvent::Focused(false) = e {
+                    if let Some(w) = handle.get_webview_window(PICKER) {
+                        let _ = w.hide();
+                    }
+                }
+            });
+            p
+        }
+    };
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let origin = window.inner_position().map_err(|e| e.to_string())?;
+    let (ox, oy) = (origin.x as f64 / scale, origin.y as f64 / scale);
+    let pos = lock(&app.state::<AppState>().sidebar_pos).clone();
+    let (bx, by) = (ox + rect.x, oy + rect.y);
+    let (cx, cy) = (bx + rect.width / 2.0, by + rect.height / 2.0);
+    // Beside the button, on the side away from the window edge the bar is on.
+    let (mut x, mut y) = match pos.as_str() {
+        "right" => (bx - PICKER_W - 6.0, cy - 40.0),
+        "top" => (cx - 40.0, by + rect.height + 6.0),
+        "bottom" => (cx - 40.0, by - PICKER_H - 6.0),
+        _ => (bx + rect.width + 6.0, cy - 40.0),
+    };
+    if let Ok(Some(m)) = window.current_monitor() {
+        let (mx, my) = (m.position().x as f64 / scale, m.position().y as f64 / scale);
+        let (mw, mh) = (
+            m.size().width as f64 / scale,
+            m.size().height as f64 / scale,
+        );
+        x = x.clamp(mx + 4.0, mx + mw - PICKER_W - 4.0);
+        y = y.clamp(my + 4.0, my + mh - PICKER_H - 4.0);
+    }
+    // The little arrow points at the button wherever the box ended up.
+    let arrow = match pos.as_str() {
+        "top" | "bottom" => (cx - x).clamp(24.0, PICKER_W - 24.0),
+        _ => (cy - y).clamp(24.0, PICKER_H - 24.0),
+    };
+    let _ = picker.set_position(tauri::LogicalPosition::new(x, y));
+    let _ = picker.set_size(LogicalSize::new(PICKER_W, PICKER_H));
+    let place = serde_json::json!({ "side": pos, "arrow": arrow });
+    *PICKER_PLACE.lock().unwrap_or_else(|e| e.into_inner()) = Some(place.clone());
+    let _ = app.emit_to(PICKER, "picker-open", place);
+    let _ = picker.show();
+    let _ = picker.set_focus();
+    Ok(())
+}
+
+/// What the popover shows: the apps with their icons, and the accounts whose sign-in a new
+/// Instagram or Threads account can reuse.
+#[tauri::command]
+pub fn picker_state(state: tauri::State<'_, AppState>) -> serde_json::Value {
+    let s = state.settings();
+    let services: Vec<serde_json::Value> = crate::settings::ServiceId::ALL
+        .iter()
+        .map(|id| serde_json::json!({ "id": id.as_str(), "name": id.display() }))
+        .collect();
+    serde_json::json!({
+        "services": services,
+        "accounts": s.accounts.iter().map(|a| serde_json::json!({
+            "id": a.id, "service": a.service.as_str(), "label": a.label, "disabled": a.disabled,
+        })).collect::<Vec<_>>(),
+        "icons": *lock(&state.icons),
+        "avatars": *lock(&state.avatars),
+        "language": s.language,
+        "theme": s.theme,
+        "place": PICKER_PLACE.lock().unwrap_or_else(|e| e.into_inner()).clone(),
+    })
+}
+
+#[tauri::command]
+pub fn picker_close(app: AppHandle) {
+    if let Some(w) = app.get_webview_window(PICKER) {
+        let _ = w.hide();
     }
 }
 

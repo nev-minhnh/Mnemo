@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-assist-learn"
+description = "Enables the assist_learn command without any pre-configured scope."
+commands.allow = ["assist_learn"]
+
+[[permission]]
+identifier = "deny-assist-learn"
+description = "Denies the assist_learn command without any pre-configured scope."
+commands.deny = ["assist_learn"]
