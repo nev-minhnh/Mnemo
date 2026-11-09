@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mnemo-crop"
+description = "Enables the mnemo_crop command without any pre-configured scope."
+commands.allow = ["mnemo_crop"]
+
+[[permission]]
+identifier = "deny-mnemo-crop"
+description = "Denies the mnemo_crop command without any pre-configured scope."
+commands.deny = ["mnemo_crop"]

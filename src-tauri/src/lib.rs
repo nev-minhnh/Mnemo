@@ -12,6 +12,7 @@ pub mod icons;
 pub mod importers;
 pub mod media;
 pub mod notify;
+pub mod profiles;
 pub mod rules;
 pub mod services;
 pub mod settings;
@@ -80,6 +81,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         .or_else(|_| app.path().home_dir())?;
     let settings = settings::Settings::load(&config_dir, &documents);
     let _ = settings.save(&config_dir);
+    profiles::migrate(&config_dir, &settings);
     // Files decrypted for opening last time.
     let _ = std::fs::remove_dir_all(config_dir.join("temp-open"));
     let (key, archive_error) = match crypto::load_or_create_key(&config_dir) {
@@ -110,6 +112,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         notices: Mutex::new(vec![]),
         senders: Mutex::new(HashMap::new()),
         page_unread: Mutex::new(Default::default()),
+        crop_top: Mutex::new(HashMap::new()),
         icons: Mutex::new(icons::load_cached(&config_dir_for_avatars)),
         http,
     };
@@ -326,6 +329,7 @@ pub fn run() {
             capture::mnemo_log,
             capture::mnemo_context,
             capture::mnemo_senders,
+            capture::mnemo_crop,
             capture::mnemo_ingest,
             capture::mnemo_media_blob,
             capture::mnemo_media_url,
@@ -343,6 +347,8 @@ pub fn run() {
             commands::add_account,
             commands::update_account,
             commands::move_account,
+            commands::share_processes,
+            commands::restart_app,
             commands::reorder_accounts,
             commands::remove_account,
             commands::show_account,

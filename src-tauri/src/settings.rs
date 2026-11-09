@@ -134,6 +134,10 @@ pub struct Account {
     pub rules: Option<DownloadRules>,
     /// Show Mnemo's notifications for this account.
     pub notify: bool,
+    /// Browser data folder under `profiles\`: empty = the account's own (`<id>`), or a
+    /// shared group (`shared-0`, `shared-1`…) whose accounts run in one browser process.
+    #[serde(default)]
+    pub profile: String,
 }
 
 impl Default for Account {
@@ -146,6 +150,7 @@ impl Default for Account {
             capture: true,
             rules: None,
             notify: true,
+            profile: String::new(),
         }
     }
 }
@@ -438,6 +443,10 @@ pub struct Settings {
     pub start_with_windows: bool,
     /// The window's close button hides Mnemo in the tray instead of quitting.
     pub close_to_tray: bool,
+    /// New accounts join a shared browser process (one per group) instead of starting their own.
+    pub share_processes: bool,
+    /// Turn off the browser's GPU acceleration (saves memory; calls and video less smooth).
+    pub disable_gpu: bool,
     pub notify: NotifySettings,
     pub ai: AiSettings,
 }
@@ -460,6 +469,8 @@ impl Default for Settings {
             sidebar_pos: "left".into(),
             start_with_windows: false,
             close_to_tray: true,
+            share_processes: false,
+            disable_gpu: false,
             notify: NotifySettings::default(),
             ai: AiSettings::default(),
         }

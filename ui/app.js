@@ -113,6 +113,34 @@ function renderSidebar() {
   });
 }
 
+// ---------------------------------------------------------------- memory: shared browser processes
+// Mirrors profiles.rs: groups shared-0, shared-1… hold at most one account per app; the
+// first account of a group keeps its sign-in, the others sign in once more.
+function memoryShareHtml(s) {
+  const accs = accounts();
+  const own = accs.filter((a) => !a.profile);
+  if (!own.length && s.share_processes) {
+    const groups = new Set(accs.map((a) => a.profile)).size;
+    return `<span class="badge ok">Đang gộp · ${accs.length} tài khoản chạy trong ${groups} bộ trình duyệt</span>`;
+  }
+  const taken = new Map(); // profile → services in it
+  accs.filter((a) => a.profile).forEach((a) => { if (!taken.has(a.profile)) taken.set(a.profile, new Set()); taken.get(a.profile).add(a.service); });
+  const relogin = [];
+  const firstIn = new Map();
+  for (const a of own) {
+    let n = 0;
+    while (taken.has('shared-' + n) && taken.get('shared-' + n).has(a.service)) n++;
+    const g = 'shared-' + n;
+    if (!taken.has(g)) taken.set(g, new Set());
+    taken.get(g).add(a.service);
+    if (firstIn.has(g) || accs.some((b) => b.profile === g)) relogin.push(a); else firstIn.set(g, a);
+  }
+  const groups = taken.size;
+  return `<div class="small">Hiện ${accs.length} tài khoản chạy ${own.length + new Set(accs.filter((a) => a.profile).map((a) => a.profile)).size} bộ trình duyệt; gộp xong còn <b>${groups}</b>.</div>
+    ${relogin.length ? `<div class="notice warn small">Sau khi gộp, các tài khoản này phải đăng nhập lại một lần: <b data-noi18n>${relogin.map((a) => esc(`${SERVICE_NAME[a.service]} · ${a.label}`)).join(', ')}</b>. Tài khoản còn lại giữ nguyên đăng nhập. Muốn giữ tài khoản nào thì kéo nó lên đầu thanh bên trước khi gộp.</div>` : ''}
+    <div><button class="btn primary sm" id="share-now">Gộp ngay và khởi động lại</button></div>`;
+}
+
 // ---------------------------------------------------------------- drag to reorder accounts
 // Pointer events rather than HTML drag-and-drop: the window's own file-drop handling
 // swallows HTML drag events in WebView2.
@@ -685,6 +713,15 @@ async function renderSettings(main) {
       <span class="label"></span><div><button class="btn danger" id="quit">${ICON.close} Thoát Mnemo ngay</button></div>
     </div></div></div>
 
+    <div class="section"><h2>Bộ nhớ (RAM)</h2><div class="card pad"><div class="form">
+      <span class="label">Dùng chung tiến trình trình duyệt</span>
+      <div class="col">${memoryShareHtml(s)}</div>
+      <span class="hint">Mỗi tài khoản mặc định chạy một bộ trình duyệt riêng (GPU, mạng, lưu trữ…), mất vài trăm MB mỗi bộ. Khi gộp, các tài khoản của các ứng dụng khác nhau chạy chung một bộ; hai tài khoản của cùng một ứng dụng vẫn tách riêng. Tin nhắn, cài đặt và tệp không bị ảnh hưởng.</span>
+      <span class="label">Tắt tăng tốc phần cứng (GPU)</span><label class="check"><span class="switch"><input type="checkbox" id="nogpu" ${s.disable_gpu ? 'checked' : ''}><span></span></span>Bật</label>
+      <span class="hint">Bớt thêm vài trăm MB của tiến trình GPU; cuộn trang và gọi video có thể kém mượt hơn. Có hiệu lực sau khi khởi động lại Mnemo.</span>
+      <span class="label"></span><span class="hint" style="grid-column:2;margin-top:0">Tài khoản đang không hiển thị luôn được hạ mức dùng bộ nhớ nhưng vẫn chạy, nên vẫn nhận tin và thông báo.</span>
+    </div></div></div>
+
     <div class="section"><h2>Giao diện</h2><div class="card pad"><div class="form">
       <span class="label">Ngôn ngữ</span><select data-s="language" style="width:200px" data-noi18n>
         ${[['vi', 'Tiếng Việt'], ['en', 'English']].map(([v, l]) => `<option value="${v}" ${s.language === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
@@ -701,6 +738,22 @@ async function renderSettings(main) {
     </div></div>
   </div>`;
 
+  const share = $('#share-now');
+  if (share) share.addEventListener('click', async () => {
+    share.disabled = true;
+    try { await invoke('share_processes', { enabled: true }); } catch (e) { share.disabled = false; toast(errText(e), true); }
+  });
+  const unshare = $('#share-off');
+  if (unshare) unshare.addEventListener('change', async () => {
+    try { await invoke('share_processes', { enabled: unshare.checked }); S.settings.share_processes = unshare.checked; } catch (e) { toast(errText(e), true); }
+  });
+  $('#nogpu').addEventListener('change', async (e) => {
+    s.disable_gpu = e.target.checked;
+    saveSettingsSoon();
+    const t = el(`<div class="notice warn row" style="margin-top:8px"><span class="grow">Khởi động lại Mnemo để áp dụng.</span><button class="btn sm" id="restart-now">Khởi động lại</button></div>`);
+    if (!$('#restart-now')) e.target.closest('.form').after(t);
+    $('#restart-now').addEventListener('click', async () => { await new Promise((r) => setTimeout(r, 900)); invoke('restart_app'); });
+  });
   main.querySelectorAll('[data-s]').forEach((input) => input.addEventListener('change', () => {
     s[input.dataset.s] = input.type === 'checkbox' ? input.checked : input.value;
     if (input.dataset.s === 'theme') applyTheme(s.theme);

@@ -108,6 +108,29 @@ pub fn mnemo_senders(
     Ok(())
 }
 
+/// How much of the page's top to keep above the window (Messenger's Facebook bar), so
+/// the app keeps its own layout instead of leaving a gap where the bar was hidden.
+#[tauri::command]
+pub fn mnemo_crop(
+    app: AppHandle,
+    webview: Webview,
+    state: State<'_, AppState>,
+    top: f64,
+) -> Result<(), String> {
+    let s = state.settings();
+    let account = account_for(&webview, &s)?;
+    let top = if top.is_finite() {
+        top.clamp(0.0, 120.0)
+    } else {
+        0.0
+    };
+    let before = lock(&state.crop_top).insert(account.id.clone(), top);
+    if before != Some(top) {
+        crate::webviews::layout(&app);
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveMessage {

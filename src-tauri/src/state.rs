@@ -58,6 +58,8 @@ pub struct AppState {
     pub senders: Mutex<HashMap<String, Vec<String>>>,
     /// Accounts whose page reports its own unread count (instead of the title).
     pub page_unread: Mutex<std::collections::HashSet<String>>,
+    /// Per account: logical px of the page's top kept above the window (hidden header).
+    pub crop_top: Mutex<HashMap<String, f64>>,
     /// The apps' own icons (data URLs) by service id.
     pub icons: Mutex<HashMap<String, String>>,
     pub http: reqwest::Client,

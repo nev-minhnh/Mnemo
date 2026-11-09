@@ -2472,7 +2472,7 @@ dependencies = [
 
 [[package]]
 name = "mnemo"
-version = "0.5.6"
+version = "0.6.0"
 dependencies = [
  "aes-gcm",
  "base64 0.23.1",
@@ -2499,6 +2499,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "url",
+ "webview2-com",
  "windows",
  "zip",
 ]

@@ -285,6 +285,24 @@
   }
   setInterval(unreadSenders, 2000);
 
+  // A page header Mnemo keeps above the window (cfg.cropTop): its height, on the paths given.
+  let cropSent = -1;
+  function cropTop() {
+    const c = cfg.cropTop;
+    if (!c) return;
+    const onPath = !c.paths || c.paths.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'));
+    const bar = onPath ? q(document, c.sel) : null;
+    let h = 0;
+    if (bar) {
+      const r = bar.getBoundingClientRect();
+      if (r.top <= 1 && r.height > 20 && r.height < 120) h = Math.round(r.bottom);
+    }
+    if (h === cropSent) return;
+    cropSent = h;
+    invoke('mnemo_crop', { top: h }).catch(() => {});
+  }
+  setInterval(cropTop, 1000);
+
   // ---------- styles (constructable sheets are allowed by the pages' CSP) ----------
   let pageSheet = null;
   function setPageCss(on) {

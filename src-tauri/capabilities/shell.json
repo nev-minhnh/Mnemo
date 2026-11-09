@@ -57,6 +57,8 @@
     "allow-ai-ask",
     "allow-ai-insert-reply",
     "allow-set-autostart",
-    "allow-quit-app"
+    "allow-quit-app",
+    "allow-share-processes",
+    "allow-restart-app"
   ]
 }

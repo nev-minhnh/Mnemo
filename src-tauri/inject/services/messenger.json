@@ -7,7 +7,7 @@
     ],
     "to": "/messages/"
   },
-  "css": "div[role='banner']{display:none !important} :root{--header-height:0px !important}",
+  "css": "",
   "cssPaths": [
     "/messages"
   ],
@@ -72,5 +72,12 @@
     "name": {
       "sel": "span[dir='auto']"
     }
-  }
+  },
+  "cropTop": {
+    "sel": "div[role='banner']",
+    "paths": [
+      "/messages"
+    ]
+  },
+  "_cropNote": "cropTop: the Facebook bar on top of /messages is kept but placed just above the window (Mnemo moves the page up by the bar's height), so Messenger keeps its full height. Hiding it with CSS left an empty band at the bottom."
 }

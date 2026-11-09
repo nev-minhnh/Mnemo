@@ -57,6 +57,7 @@ pub fn save_settings(
     next.archive_dir = cur.archive_dir.clone();
     next.accounts = cur.accounts.clone();
     next.start_with_windows = cur.start_with_windows;
+    next.share_processes = cur.share_processes;
     if next.downloads_dir.as_os_str().is_empty() {
         next.downloads_dir = cur.downloads_dir.clone();
     }
@@ -99,8 +100,11 @@ pub async fn add_account(
             ..Account::default()
         };
         s.accounts.push(account.clone());
+        if s.share_processes {
+            crate::profiles::assign(&mut s, &account.id);
+        }
         save(&state, &s)?;
-        account
+        s.account(&account.id).cloned().unwrap_or(account)
     };
     // Show the new account in the sidebar right away; the page itself may take a moment.
     let _ = app.emit_to(webviews::SHELL, "accounts", &account.id);
@@ -165,11 +169,17 @@ pub fn remove_account(
     wipe_profile: bool,
 ) -> Result<(), String> {
     webviews::close_account(&app, &id);
-    {
+    // A folder another account still runs in is never deleted.
+    let wipe_dir = {
         let mut s = lock(&state.settings);
+        let dir = s.account(&id).and_then(|a| {
+            (!crate::profiles::shared_with_others(&s, a))
+                .then(|| crate::profiles::dir(&state.config_dir, a))
+        });
         s.accounts.retain(|a| a.id != id);
         save(&state, &s)?;
-    }
+        dir
+    };
     lock(&state.unread).remove(&id);
     lock(&state.avatars).remove(&id);
     let _ = std::fs::remove_file(crate::capture::avatar_path(&state.config_dir, &id));
@@ -180,8 +190,7 @@ pub fn remove_account(
             .join(format!("{id}.manual")),
     );
     crate::notify::update_taskbar(&app);
-    if wipe_profile {
-        let dir = state.config_dir.join("profiles").join(&id);
+    if let (true, Some(dir)) = (wipe_profile, wipe_dir) {
         // The browser process may still hold files for a moment after closing.
         std::thread::spawn(move || {
             for _ in 0..20 {
@@ -659,6 +668,33 @@ pub fn apply_autostart(app: &AppHandle, state: &AppState, enabled: bool) -> Resu
     let mut s = lock(&state.settings);
     s.start_with_windows = enabled;
     save(&state, &s)
+}
+
+/// Turns sharing on (every existing account joins a group, then Mnemo restarts so the
+/// pages reopen in the shared browsers) or off (only new accounts get their own folder).
+#[tauri::command]
+pub fn share_processes(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<(), String> {
+    {
+        let mut s = lock(&state.settings);
+        s.share_processes = enabled;
+        if enabled {
+            crate::profiles::assign_all(&mut s);
+        }
+        save(&state, &s)?;
+    }
+    if enabled {
+        app.restart();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn restart_app(app: AppHandle) {
+    app.restart();
 }
 
 #[tauri::command]

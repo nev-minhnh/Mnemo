@@ -65,6 +65,13 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
   - mọi **API tương thích OpenAI** khác: DeepSeek, MiniMax, OpenRouter, llama.cpp chạy trên máy…
   - API key được lưu mã hóa bằng DPAPI.
 
+## Tiết kiệm RAM
+
+Mỗi tài khoản là một trình duyệt WebView2. Mnemo giảm RAM bằng ba cách (Cài đặt → Bộ nhớ):
+- **Tự động:** tài khoản không hiển thị được hạ mức dùng bộ nhớ (vẫn chạy, vẫn nhận tin).
+- **Dùng chung tiến trình trình duyệt:** các tài khoản của các ứng dụng khác nhau chạy chung một bộ trình duyệt (một tiến trình GPU, mạng, lưu trữ… thay vì mỗi tài khoản một bộ). Khi bật lần đầu, tài khoản xếp trước của mỗi nhóm giữ đăng nhập, các tài khoản còn lại đăng nhập lại một lần. Tài khoản mới sau đó tự vào nhóm.
+- **Tắt tăng tốc phần cứng (GPU)** nếu cần bớt thêm.
+
 ## Cài đặt
 
 Tải `Mnemo-<version>-windows-x64.zip` từ mục Actions/Releases rồi giải nén. Trong đó có:

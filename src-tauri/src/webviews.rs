@@ -83,12 +83,39 @@ fn parked(size: &LogicalSize<f64>) -> LogicalPosition<f64> {
     LogicalPosition::new(-(size.width + 400.0), 0.0)
 }
 
+/// Asks WebView2 to keep a page that isn't on screen small: it releases caches and memory
+/// it can rebuild, while the page keeps running (messages and notifications still arrive).
+pub fn memory_level(wv: &Webview, low: bool) {
+    #[cfg(windows)]
+    {
+        let _ = wv.with_webview(move |p| unsafe {
+            use webview2_com::Microsoft::Web::WebView2::Win32::{
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL, ICoreWebView2_19,
+            };
+            use windows::core::Interface;
+            if let Ok(core) = p.controller().CoreWebView2() {
+                if let Ok(w) = core.cast::<ICoreWebView2_19>() {
+                    let _ = w.SetMemoryUsageTargetLevel(if low {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
+                    } else {
+                        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
+                    });
+                }
+            }
+        });
+    }
+    #[cfg(not(windows))]
+    let _ = (wv, low);
+}
+
 /// Moves an account's page out of sight without pausing it.
 pub fn park(app: &AppHandle, wv: &Webview) {
     if let Some(window) = app.get_window(MAIN) {
         let (_, size) = account_rect(app, &window);
         let _ = wv.set_size(size);
         let _ = wv.set_position(parked(&size));
+        memory_level(wv, true);
     }
 }
 
@@ -110,12 +137,20 @@ pub fn layout(app: &AppHandle) {
         if !wv.label().starts_with("acc-") {
             continue;
         }
-        let _ = wv.set_size(size);
-        if visible.as_deref() == Some(wv.label()) {
-            let _ = wv.set_position(pos);
+        // A hidden page header sits just above the window instead of leaving a gap.
+        let crop = wv
+            .label()
+            .strip_prefix("acc-")
+            .and_then(|id| lock(&app.state::<AppState>().crop_top).get(id).copied())
+            .unwrap_or(0.0);
+        let _ = wv.set_size(LogicalSize::new(size.width, size.height + crop));
+        let shown = visible.as_deref() == Some(wv.label());
+        if shown {
+            let _ = wv.set_position(LogicalPosition::new(pos.x, pos.y - crop));
         } else {
             let _ = wv.set_position(parked(&size));
         }
+        memory_level(wv, !shown);
     }
 }
 
@@ -257,7 +292,18 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let state = app.state::<AppState>();
     let def = services::def(account.service);
     let page_cfg = services::page_config(&state.config_dir, account.service);
-    let profile = state.config_dir.join("profiles").join(&account.id);
+    let profile = crate::profiles::dir(&state.config_dir, account);
+    let gpu = if state.settings().disable_gpu {
+        " --disable-gpu --disable-gpu-compositing"
+    } else {
+        ""
+    };
+    // Every account sharing a folder must pass the same arguments.
+    let browser_args = format!(
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+         --disable-background-timer-throttling --disable-renderer-backgrounding \
+         --disable-backgrounding-occluded-windows{gpu}"
+    );
     let window = app.get_window(MAIN).ok_or("Cửa sổ chính chưa sẵn sàng")?;
     let service = account.service;
     let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());
@@ -317,11 +363,8 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
         .zoom_hotkeys_enabled(true)
         // Tauri's own defaults, plus: never slow down or freeze an app's page because it
         // isn't on screen, so messages, calls and notifications keep arriving live.
-        .additional_browser_args(
-            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
-             --disable-background-timer-throttling --disable-renderer-backgrounding \
-             --disable-backgrounding-occluded-windows",
-        )
+        // Every account sharing a folder must pass the same arguments.
+        .additional_browser_args(&browser_args)
         .devtools(true);
     let (pos, size) = account_rect(app, &window);
     let wv = window

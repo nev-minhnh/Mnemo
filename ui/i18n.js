@@ -279,6 +279,17 @@ const I18N = {
   '↓ Xuống': '↓ Down',
   '✓ Sửa lỗi': '✓ Proofread',
   'Trang chủ': 'Home',
+  'Bộ nhớ (RAM)': 'Memory (RAM)',
+  'Dùng chung tiến trình trình duyệt': 'Share browser processes',
+  'Mỗi tài khoản mặc định chạy một bộ trình duyệt riêng (GPU, mạng, lưu trữ…), mất vài trăm MB mỗi bộ. Khi gộp, các tài khoản của các ứng dụng khác nhau chạy chung một bộ; hai tài khoản của cùng một ứng dụng vẫn tách riêng. Tin nhắn, cài đặt và tệp không bị ảnh hưởng.': 'By default each account runs its own browser (GPU, network, storage…), several hundred MB each. Shared, accounts of different apps run in one browser; two accounts of the same app stay apart. Messages, settings and files are not affected.',
+  'Tắt tăng tốc phần cứng (GPU)': 'Turn off hardware acceleration (GPU)',
+  'Bớt thêm vài trăm MB của tiến trình GPU; cuộn trang và gọi video có thể kém mượt hơn. Có hiệu lực sau khi khởi động lại Mnemo.': 'Saves a few hundred MB of the GPU process; scrolling and video calls may be less smooth. Takes effect after restarting Mnemo.',
+  'Tài khoản đang không hiển thị luôn được hạ mức dùng bộ nhớ nhưng vẫn chạy, nên vẫn nhận tin và thông báo.': 'Accounts not on screen are always kept at low memory but keep running, so messages and notifications still arrive.',
+  'Gộp ngay và khởi động lại': 'Share now and restart',
+  'Khởi động lại Mnemo để áp dụng.': 'Restart Mnemo to apply.',
+  'Khởi động lại': 'Restart',
+  'Tài khoản còn lại giữ nguyên đăng nhập. Muốn giữ tài khoản nào thì kéo nó lên đầu thanh bên trước khi gộp.': 'The other accounts stay signed in. To keep one signed in, drag it to the top of the sidebar first.',
+  'Sau khi gộp, các tài khoản này phải đăng nhập lại một lần:': 'After sharing, these accounts must sign in once more:',
   'Chọn ứng dụng. Mỗi tài khoản có hồ sơ trình duyệt riêng, nên bạn thêm được nhiều tài khoản của cùng một ứng dụng.': 'Choose an app. Each account has its own browser profile, so you can add several accounts of the same app.',
   'Thanh bên Mnemo': 'Mnemo sidebar',
   'Bên trái': 'Left',
@@ -309,6 +320,8 @@ const I18N = {
 
 // Whole strings with numbers or names in them.
 const I18N_PATTERNS = [
+  [/^Hiện (\d+) tài khoản chạy (\d+) bộ trình duyệt; gộp xong còn$/, 'Now $1 accounts run $2 browsers; after sharing:'],
+  [/^Đang gộp · (\d+) tài khoản chạy trong (\d+) bộ trình duyệt$/, 'Shared · $1 accounts run in $2 browsers'],
   [/^Tóm tắt tin chưa xem \((\d+)\)$/, 'Summarize unseen messages ($1)'],
   [/^<dịch vụ>(.*)$/, '<service>$1'],
   [/^Claude Code \(tài khoản Claude\)$/, 'Claude Code (Claude account)'],
