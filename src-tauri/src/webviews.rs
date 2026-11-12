@@ -341,17 +341,11 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let def = services::def(account.service);
     let page_cfg = services::page_config(&state.config_dir, account.service);
     let profile = crate::profiles::dir(&state.config_dir, account);
-    let gpu = if state.settings().disable_gpu {
-        " --disable-gpu --disable-gpu-compositing --in-process-gpu"
-    } else {
-        ""
-    };
     // Every account sharing a folder must pass the same arguments.
-    let browser_args = format!(
-        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+    let browser_args = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
          --disable-background-timer-throttling --disable-renderer-backgrounding \
-         --disable-backgrounding-occluded-windows{gpu}"
-    );
+         --disable-backgrounding-occluded-windows"
+        .to_string();
     let window = app.get_window(MAIN).ok_or("Cửa sổ chính chưa sẵn sàng")?;
     let service = account.service;
     let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());

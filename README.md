@@ -73,7 +73,6 @@ Mỗi tài khoản là một trình duyệt WebView2. Mnemo giảm RAM bằng ba
 - **Tự động:** tài khoản không hiển thị, và mọi tài khoản khi Mnemo thu về khay hoặc thu nhỏ, được hạ mức dùng bộ nhớ (WebView2 MemoryUsageTargetLevel = Low); trang vẫn chạy, vẫn nhận tin.
 - Không dùng TrySuspend (đóng băng trang) vì trang bị đóng băng không nhận tin hay thông báo; muốn tài khoản không tốn gì thì dùng **Tạm tắt**.
 - **Dùng chung tiến trình trình duyệt** (mặc định bật, tắt được bằng công tắc): các tài khoản của các ứng dụng khác nhau chạy chung một bộ trình duyệt (một tiến trình GPU, mạng, lưu trữ… thay vì mỗi tài khoản một bộ). Khi bật lần đầu, tài khoản xếp trước của mỗi nhóm giữ đăng nhập, các tài khoản còn lại đăng nhập lại một lần. Tài khoản mới sau đó tự vào nhóm. Tắt công tắc thì mỗi tài khoản nhận lại một bản sao riêng của bộ chung, nên vẫn giữ đăng nhập.
-- **Tắt tăng tốc phần cứng (GPU)** nếu cần bớt thêm.
 
 ## Cài đặt
 

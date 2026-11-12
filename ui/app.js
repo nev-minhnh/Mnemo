@@ -755,8 +755,6 @@ async function renderSettings(main) {
       <span class="label">Dùng chung tiến trình trình duyệt</span>
       <div class="col"><label class="check"><span class="switch"><input type="checkbox" id="share" ${s.share_processes ? 'checked' : ''}><span></span></span>Bật</label><div id="share-note"></div></div>
       <span class="hint">Mỗi tài khoản mặc định chạy một bộ trình duyệt riêng (GPU, mạng, lưu trữ…), mất vài trăm MB mỗi bộ. Khi gộp, các tài khoản của các ứng dụng khác nhau chạy chung một bộ; hai tài khoản của cùng một ứng dụng vẫn tách riêng. Tin nhắn, cài đặt và tệp không bị ảnh hưởng.</span>
-      <span class="label">Tắt tăng tốc phần cứng (GPU)</span><label class="check"><span class="switch"><input type="checkbox" id="nogpu" ${s.disable_gpu ? 'checked' : ''}><span></span></span>Bật</label>
-      <span class="hint">Trang được vẽ bằng CPU và phần đồ họa chạy chung trong tiến trình trình duyệt, nên không còn tiến trình GPU riêng; cuộn trang và gọi video có thể kém mượt hơn. Có hiệu lực sau khi khởi động lại Mnemo.</span>
       <span class="label"></span><span class="hint" style="grid-column:2;margin-top:0">Tài khoản đang không hiển thị luôn được hạ mức dùng bộ nhớ nhưng vẫn chạy, nên vẫn nhận tin và thông báo.</span>
     </div></div></div>
 
@@ -789,13 +787,6 @@ async function renderSettings(main) {
     });
   });
   $('#start-mode').addEventListener('change', (e) => { s.start_minimized = !!e.target.value; saveSettingsSoon(); });
-  $('#nogpu').addEventListener('change', async (e) => {
-    s.disable_gpu = e.target.checked;
-    saveSettingsSoon();
-    const t = el(`<div class="notice warn row" style="margin-top:8px"><span class="grow">Khởi động lại Mnemo để áp dụng.</span><button class="btn sm" id="restart-now">Khởi động lại</button></div>`);
-    if (!$('#restart-now')) e.target.closest('.form').after(t);
-    $('#restart-now').addEventListener('click', async () => { await new Promise((r) => setTimeout(r, 900)); invoke('restart_app'); });
-  });
   main.querySelectorAll('[data-s]').forEach((input) => input.addEventListener('change', () => {
     s[input.dataset.s] = input.type === 'checkbox' ? input.checked : input.value;
     if (input.dataset.s === 'theme') applyTheme(s.theme);

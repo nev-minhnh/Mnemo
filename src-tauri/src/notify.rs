@@ -60,7 +60,7 @@ fn notify_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
 fn place(app: &AppHandle, count: usize) {
     let Ok(w) = notify_window(app) else { return };
     if count == 0 {
-        let _ = w.hide();
+        hide_now(&w);
         return;
     }
     let shown = count.min(MAX_SHOWN) as f64;
@@ -114,6 +114,24 @@ fn show_inactive(w: &tauri::WebviewWindow) {
         }
     }
     let _ = w.show();
+}
+
+/// Hides the notification window. It is shown through Windows directly (see
+/// `show_inactive`), so it must be hidden the same way: the window library still believes
+/// it was never shown and would do nothing, leaving an invisible window that swallows
+/// clicks in that corner of the screen.
+fn hide_now(w: &tauri::WebviewWindow) {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{SW_HIDE, ShowWindow};
+        if let Ok(h) = w.hwnd() {
+            unsafe {
+                let _ = ShowWindow(HWND(h.0 as _), SW_HIDE);
+            }
+        }
+    }
+    let _ = w.hide();
 }
 
 /// Creates the (hidden) notification window ahead of time, so the first notification
