@@ -233,6 +233,7 @@ pub fn set_unread(app: &AppHandle, account_id: &str, count: u32) {
         if count == 0 && b > 0 {
             // Read in the app itself (or on the phone).
             lock(&state.pending).remove(account_id);
+            lock(&state.shown).remove(account_id);
         }
     }
     if changed {
@@ -280,6 +281,7 @@ pub fn notified(app: &AppHandle, account_id: &str) {
 
 /// The person is looking at the account.
 pub fn seen(app: &AppHandle, account_id: &str) {
+    lock(&app.state::<AppState>().shown).remove(account_id);
     if lock(&app.state::<AppState>().pending)
         .remove(account_id)
         .is_some()
@@ -589,11 +591,12 @@ pub fn hide_assist(app: &AppHandle) {
 /// - Tauri's own defaults;
 /// - never slow down or freeze a page because it isn't on screen, so messages, calls and
 ///   notifications keep arriving live.
-/// Hardware acceleration stays on (the browser's default): scrolling is smooth and uses
-/// less battery than drawing with the CPU, for one GPU process per browser.
+/// Hardware acceleration is half on: the GPU puts the page together and scrolls it (smooth,
+/// light on the battery), the CPU draws the content (`--disable-gpu-rasterization`), which
+/// keeps the GPU process smaller than with everything on the GPU.
 pub const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
      --disable-background-timer-throttling --disable-renderer-backgrounding \
-     --disable-backgrounding-occluded-windows";
+     --disable-backgrounding-occluded-windows --disable-gpu-rasterization";
 
 /// The data folder of Mnemo's own windows (the bar, notifications, popovers): the accounts'
 /// folder holding the most accounts, so the interface runs inside that browser instead of

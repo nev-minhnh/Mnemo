@@ -110,6 +110,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         key: Mutex::new(key),
         unread: Mutex::new(HashMap::new()),
         pending: Mutex::new(HashMap::new()),
+        shown: Mutex::new(HashMap::new()),
         stats: Mutex::new(HashMap::new()),
         context: Mutex::new(HashMap::new()),
         visible: Mutex::new(None),

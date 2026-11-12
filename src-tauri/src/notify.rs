@@ -34,6 +34,25 @@ pub struct Notice {
     pub extra: Value,
     #[serde(default)]
     pub generic: bool,
+    /// The app's own label for the notification: a new one with the same label replaces
+    /// the old one, as in a browser.
+    #[serde(default)]
+    pub tag: Option<String>,
+}
+
+/// Whether this notification (sender + text) is new for the account. The same one again
+/// within `REPEAT_MS`, before the person looked at the account, is a repeat.
+const REPEAT_MS: i64 = 10 * 60 * 1000;
+pub fn first_time(state: &AppState, account: &str, from: &str, body: &str) -> bool {
+    let now = crate::util::now_ms();
+    let mut all = lock(&state.shown);
+    let seen = all.entry(account.to_string()).or_default();
+    seen.retain(|_, ts| now - *ts < REPEAT_MS);
+    if seen.len() > 500 {
+        seen.clear();
+    }
+    seen.insert(format!("{}\n{}", from.trim(), body.trim()), now)
+        .is_none()
 }
 
 fn notify_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
@@ -165,7 +184,9 @@ pub fn push(app: &AppHandle, notice: Notice) {
     {
         let mut n = lock(&state.notices);
         n.retain(|x| {
-            !(x.account == notice.account && x.page_id.is_some() && x.page_id == notice.page_id)
+            !(x.account == notice.account
+                && ((x.page_id.is_some() && x.page_id == notice.page_id)
+                    || (x.tag.is_some() && x.tag == notice.tag)))
         });
         n.insert(0, notice);
         n.truncate(20);
@@ -221,9 +242,20 @@ pub async fn mnemo_notify(
     if main_focused && visible && same_chat {
         return Ok(());
     }
+    // Apps send the same notification again (to refresh it, or after reconnecting): once
+    // is enough.
+    if !first_time(&state, &account.id, &notice.title, &notice.body) {
+        return Ok(());
+    }
     if !(main_focused && visible) {
         webviews::notified(&app, &account.id);
     }
+    let tag = notice
+        .extra
+        .get("tag")
+        .and_then(|t| t.as_str())
+        .filter(|t| !t.is_empty())
+        .map(|t| crate::util::truncate_chars(t, 200));
     let text = if s.notify.show_content {
         crate::util::truncate_chars(notice.body.trim(), 600)
     } else {
@@ -249,6 +281,7 @@ pub async fn mnemo_notify(
             page_id: notice.id.map(|i| crate::util::truncate_chars(&i, 100)),
             extra,
             generic: false,
+            tag,
         },
     );
     Ok(())
@@ -393,6 +426,7 @@ pub fn unread_rose(app: &AppHandle, account_id: &str, before: u32, now: u32) {
                 page_id: None,
                 extra: Value::Null,
                 generic: true,
+                tag: None,
             },
         );
     });
@@ -493,19 +527,20 @@ pub fn update_taskbar(app: &AppHandle) {
     });
     #[cfg(windows)]
     {
-        let icon = if s.notify.taskbar_badge && total > 0 {
-            Some(tauri::image::Image::new_owned(badge_rgba(total), 32, 32))
-        } else {
-            None
-        };
-        let _ = w.set_overlay_icon(icon);
-        // Also drawn into the icon itself: Windows hides overlay icons when "Show badges on
-        // taskbar apps" is off, and never shows them in Alt+Tab.
-        let badged = (s.notify.taskbar_badge && total > 0)
-            .then(|| icon_with_badge(total))
-            .flatten();
-        if let Some(icon) = badged.or_else(|| app.default_window_icon().cloned()) {
-            let _ = w.set_icon(icon);
+        // The count is drawn into the icon itself (Windows hides overlay icons when "Show
+        // badges on taskbar apps" is off), and only when it changed.
+        static LAST: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(-1);
+        let badge = if s.notify.taskbar_badge { total } else { 0 };
+        if LAST.swap(badge as i64, std::sync::atomic::Ordering::Relaxed) != badge as i64 {
+            let _ = w.set_overlay_icon(None);
+            let icon = if badge > 0 {
+                icon_with_badge(badge)
+            } else {
+                app.default_window_icon().cloned()
+            };
+            if let Some(icon) = icon {
+                let _ = w.set_icon(icon);
+            }
         }
     }
     #[cfg(not(windows))]
