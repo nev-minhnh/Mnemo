@@ -270,7 +270,8 @@ pub fn run() {
             let scale = window.scale_factor().unwrap_or(1.0);
             let size = window.inner_size()?.to_logical::<f64>(scale);
             window.add_child(
-                WebviewBuilder::new(webviews::SHELL, WebviewUrl::App("index.html".into())),
+                WebviewBuilder::new(webviews::SHELL, WebviewUrl::App("index.html".into()))
+                    .additional_browser_args(webviews::OWN_ARGS),
                 LogicalPosition::new(0.0, 0.0),
                 LogicalSize::new(size.width, size.height),
             )?;

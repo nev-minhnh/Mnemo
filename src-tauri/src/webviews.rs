@@ -342,10 +342,11 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let page_cfg = services::page_config(&state.config_dir, account.service);
     let profile = crate::profiles::dir(&state.config_dir, account);
     // Every account sharing a folder must pass the same arguments.
-    let browser_args = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+    let browser_args = format!(
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
          --disable-background-timer-throttling --disable-renderer-backgrounding \
-         --disable-backgrounding-occluded-windows"
-        .to_string();
+         --disable-backgrounding-occluded-windows {NO_GPU}"
+    );
     let window = app.get_window(MAIN).ok_or("Cửa sổ chính chưa sẵn sàng")?;
     let service = account.service;
     let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());
@@ -475,6 +476,7 @@ pub fn show_assist(
         None => {
             tauri::WebviewWindowBuilder::new(app, ASSIST, WebviewUrl::App("assist.html".into()))
                 .title("Mnemo – trợ lý viết")
+                .additional_browser_args(OWN_ARGS)
                 .inner_size(440.0, 560.0)
                 .decorations(false)
                 .resizable(true)
@@ -532,6 +534,14 @@ pub fn hide_assist(app: &AppHandle) {
 
 // ---------------------------------------------------------------- Add account popover
 
+/// Hardware acceleration is always off: pages are drawn by the CPU and graphics run inside
+/// the browser process, so there is no separate GPU process (less memory, and smoother here).
+pub const NO_GPU: &str = "--disable-gpu --disable-gpu-compositing --in-process-gpu";
+/// Arguments of Mnemo's own windows (the bar, notifications, popovers). They share one
+/// browser, so every one of them must pass exactly these.
+pub const OWN_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+     --disable-gpu --disable-gpu-compositing --in-process-gpu";
+
 pub const PICKER: &str = "picker";
 const PICKER_W: f64 = 584.0;
 const PICKER_H: f64 = 330.0;
@@ -583,6 +593,7 @@ pub async fn open_picker(app: AppHandle, rect: ButtonRect) -> Result<(), String>
                 WebviewUrl::App("picker.html".into()),
             )
             .title("Mnemo – thêm tài khoản")
+            .additional_browser_args(OWN_ARGS)
             .inner_size(PICKER_W, PICKER_H)
             .decorations(false)
             .transparent(true)
