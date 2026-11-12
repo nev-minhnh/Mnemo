@@ -533,13 +533,12 @@ pub fn hide_assist(app: &AppHandle) {
 /// one browser and must all pass exactly the same ones):
 /// - Tauri's own defaults;
 /// - never slow down or freeze a page because it isn't on screen, so messages, calls and
-///   notifications keep arriving live;
-/// - hardware acceleration always off: pages are drawn by the CPU and graphics run inside
-///   the browser process, so there is no separate GPU process.
+///   notifications keep arriving live.
+/// Hardware acceleration stays on (the browser's default): scrolling is smooth and uses
+/// less battery than drawing with the CPU, for one GPU process per browser.
 pub const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
      --disable-background-timer-throttling --disable-renderer-backgrounding \
-     --disable-backgrounding-occluded-windows \
-     --disable-gpu --disable-gpu-compositing --in-process-gpu";
+     --disable-backgrounding-occluded-windows";
 
 /// The data folder of Mnemo's own windows (the bar, notifications, popovers): the accounts'
 /// folder holding the most accounts, so the interface runs inside that browser instead of
