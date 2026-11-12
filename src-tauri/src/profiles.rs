@@ -19,6 +19,34 @@ pub fn dir(config_dir: &Path, account: &Account) -> PathBuf {
     config_dir.join("profiles").join(name)
 }
 
+/// The folder most enabled accounts run in (`shared-0` when there are none yet).
+pub fn busiest(config_dir: &Path, settings: &Settings) -> PathBuf {
+    let mut count: Vec<(&str, usize)> = Vec::new();
+    for a in settings.accounts.iter().filter(|a| !a.disabled) {
+        let name = folder_name(a);
+        match count.iter_mut().find(|(n, _)| *n == name) {
+            Some((_, c)) => *c += 1,
+            None => count.push((name, 1)),
+        }
+    }
+    // The first of the fullest ones, in sidebar order.
+    let mut best: Option<(&str, usize)> = None;
+    for c in count {
+        if best.is_none_or(|b| c.1 > b.1) {
+            best = Some(c);
+        }
+    }
+    config_dir
+        .join("profiles")
+        .join(best.map_or("shared-0", |b| b.0))
+}
+
+/// A folder that couldn't be deleted now (Mnemo's own windows run in it) is deleted at the
+/// next start instead.
+pub fn delete_later(dir: &Path) {
+    let _ = std::fs::write(dir.with_extension("delete"), b"");
+}
+
 /// The app whose sign-in this one can reuse: Instagram signs in with Facebook (Messenger),
 /// Threads with Instagram.
 pub fn partner(service: ServiceId) -> Option<ServiceId> {
@@ -161,6 +189,20 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
 ///   old folders are left in place);
 /// - an account leaving a group gets a copy of the group's folder, so nobody signs in again.
 pub fn migrate(config_dir: &Path, settings: &mut Settings) {
+    // Folders left to delete last time, unless an account moved in since.
+    if let Ok(dir) = std::fs::read_dir(config_dir.join("profiles")) {
+        for e in dir.flatten() {
+            let path = e.path();
+            if path.extension().is_some_and(|x| x == "delete") {
+                let folder = path.with_extension("");
+                let name = folder.file_name().unwrap_or_default().to_string_lossy();
+                if !settings.accounts.iter().any(|a| folder_name(a) == name) {
+                    let _ = std::fs::remove_dir_all(&folder);
+                }
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+    }
     for a in settings.accounts.iter_mut() {
         if a.pending_copy.is_empty() {
             continue;

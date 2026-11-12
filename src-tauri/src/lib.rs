@@ -86,6 +86,10 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
     }
     profiles::migrate(&config_dir, &mut settings);
     let _ = settings.save(&config_dir);
+    // The interface's own browser data of earlier versions (it now lives with the accounts').
+    if let Ok(local) = app.path().app_local_data_dir() {
+        let _ = std::fs::remove_dir_all(local.join("EBWebView"));
+    }
     // Files decrypted for opening last time.
     let _ = std::fs::remove_dir_all(config_dir.join("temp-open"));
     let (key, archive_error) = match crypto::load_or_create_key(&config_dir) {
@@ -271,7 +275,8 @@ pub fn run() {
             let size = window.inner_size()?.to_logical::<f64>(scale);
             window.add_child(
                 WebviewBuilder::new(webviews::SHELL, WebviewUrl::App("index.html".into()))
-                    .additional_browser_args(webviews::OWN_ARGS),
+                    .additional_browser_args(webviews::BROWSER_ARGS)
+                    .data_directory(webviews::own_dir(app.handle())),
                 LogicalPosition::new(0.0, 0.0),
                 LogicalSize::new(size.width, size.height),
             )?;

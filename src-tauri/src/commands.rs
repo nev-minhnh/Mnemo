@@ -203,6 +203,11 @@ pub fn remove_account(
     );
     crate::notify::update_taskbar(&app);
     if let (true, Some(dir)) = (wipe_profile, wipe_dir) {
+        if dir == webviews::own_dir(&app) {
+            // Mnemo's own windows run in this folder: it goes at the next start.
+            crate::profiles::delete_later(&dir);
+            return Ok(());
+        }
         // The browser process may still hold files for a moment after closing.
         std::thread::spawn(move || {
             for _ in 0..20 {

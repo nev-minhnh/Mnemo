@@ -42,7 +42,8 @@ fn notify_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
     }
     tauri::WebviewWindowBuilder::new(app, NOTIFY, WebviewUrl::App("notify.html".into()))
         .title("Mnemo")
-        .additional_browser_args(crate::webviews::OWN_ARGS)
+        .additional_browser_args(crate::webviews::BROWSER_ARGS)
+        .data_directory(crate::webviews::own_dir(app))
         .inner_size(WIDTH, CARD_H)
         .decorations(false)
         .transparent(true)

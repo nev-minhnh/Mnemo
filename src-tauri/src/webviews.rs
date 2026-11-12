@@ -341,12 +341,6 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let def = services::def(account.service);
     let page_cfg = services::page_config(&state.config_dir, account.service);
     let profile = crate::profiles::dir(&state.config_dir, account);
-    // Every account sharing a folder must pass the same arguments.
-    let browser_args = format!(
-        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
-         --disable-background-timer-throttling --disable-renderer-backgrounding \
-         --disable-backgrounding-occluded-windows {NO_GPU}"
-    );
     let window = app.get_window(MAIN).ok_or("Cửa sổ chính chưa sẵn sàng")?;
     let service = account.service;
     let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());
@@ -407,7 +401,7 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
         // Tauri's own defaults, plus: never slow down or freeze an app's page because it
         // isn't on screen, so messages, calls and notifications keep arriving live.
         // Every account sharing a folder must pass the same arguments.
-        .additional_browser_args(&browser_args)
+        .additional_browser_args(BROWSER_ARGS)
         .devtools(true);
     let (pos, size) = account_rect(app, &window);
     let wv = window
@@ -476,7 +470,8 @@ pub fn show_assist(
         None => {
             tauri::WebviewWindowBuilder::new(app, ASSIST, WebviewUrl::App("assist.html".into()))
                 .title("Mnemo – trợ lý viết")
-                .additional_browser_args(OWN_ARGS)
+                .additional_browser_args(BROWSER_ARGS)
+                .data_directory(own_dir(app))
                 .inner_size(440.0, 560.0)
                 .decorations(false)
                 .resizable(true)
@@ -534,13 +529,29 @@ pub fn hide_assist(app: &AppHandle) {
 
 // ---------------------------------------------------------------- Add account popover
 
-/// Hardware acceleration is always off: pages are drawn by the CPU and graphics run inside
-/// the browser process, so there is no separate GPU process (less memory, and smoother here).
-pub const NO_GPU: &str = "--disable-gpu --disable-gpu-compositing --in-process-gpu";
-/// Arguments of Mnemo's own windows (the bar, notifications, popovers). They share one
-/// browser, so every one of them must pass exactly these.
-pub const OWN_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+/// Arguments of every page, the accounts' and Mnemo's own (pages in one data folder run in
+/// one browser and must all pass exactly the same ones):
+/// - Tauri's own defaults;
+/// - never slow down or freeze a page because it isn't on screen, so messages, calls and
+///   notifications keep arriving live;
+/// - hardware acceleration always off: pages are drawn by the CPU and graphics run inside
+///   the browser process, so there is no separate GPU process.
+pub const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+     --disable-background-timer-throttling --disable-renderer-backgrounding \
+     --disable-backgrounding-occluded-windows \
      --disable-gpu --disable-gpu-compositing --in-process-gpu";
+
+/// The data folder of Mnemo's own windows (the bar, notifications, popovers): the accounts'
+/// folder holding the most accounts, so the interface runs inside that browser instead of
+/// starting one of its own. Chosen once per run.
+pub fn own_dir(app: &AppHandle) -> std::path::PathBuf {
+    static DIR: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    DIR.get_or_init(|| {
+        let state = app.state::<AppState>();
+        crate::profiles::busiest(&state.config_dir, &state.settings())
+    })
+    .clone()
+}
 
 pub const PICKER: &str = "picker";
 const PICKER_W: f64 = 584.0;
@@ -593,7 +604,8 @@ pub async fn open_picker(app: AppHandle, rect: ButtonRect) -> Result<(), String>
                 WebviewUrl::App("picker.html".into()),
             )
             .title("Mnemo – thêm tài khoản")
-            .additional_browser_args(OWN_ARGS)
+            .additional_browser_args(BROWSER_ARGS)
+            .data_directory(own_dir(&app))
             .inner_size(PICKER_W, PICKER_H)
             .decorations(false)
             .transparent(true)
