@@ -31,7 +31,7 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 - Đăng nhập, xác minh và cấp quyền của Meta (Instagram, Threads, Messenger, "Tiếp tục bằng Instagram/Facebook") đều mở ngay trong Mnemo.
 - **Số tin chưa đọc tổng** trên biểu tượng taskbar (có thể tắt), trên tiêu đề cửa sổ và trên tooltip ở khay.
 - Chuyển qua lại giữa các tài khoản **không tải lại trang**: tài khoản không hiển thị vẫn chạy (được "đỗ" ngoài khung cửa sổ thay vì bị ẩn), nên WhatsApp và các app khác giữ nguyên phiên và kết nối.
-- **Khởi động cùng Windows**: Mnemo chạy ẩn ở khay hệ thống, vẫn lưu tin và vẫn hiện thông báo. **Bấm × thì thu về khay**; thoát hẳn từ menu khay hoặc nút "Thoát Mnemo ngay" trong Cài đặt. Hai tùy chọn này có cả trong **Cài đặt → Khởi động & khay hệ thống** lẫn menu chuột phải ở biểu tượng khay.
+- **Khởi động cùng Windows**, chọn được: thu nhỏ trên taskbar (hiện icon và số chưa đọc) hoặc chỉ ở khay hệ thống. Chi tiết: Mnemo chạy ẩn ở khay hệ thống, vẫn lưu tin và vẫn hiện thông báo. **Bấm × thì thu về khay**; thoát hẳn từ menu khay hoặc nút "Thoát Mnemo ngay" trong Cài đặt. Hai tùy chọn này có cả trong **Cài đặt → Khởi động & khay hệ thống** lẫn menu chuột phải ở biểu tượng khay.
 
 **Kho tin nhắn cục bộ**
 - **Mức A, tự động:** tin nhắn và tệp mà ứng dụng hiển thị được lưu ngay khi bạn mở hội thoại.
@@ -50,7 +50,9 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
 - **Chọn nơi lưu** cho cả kho tin nhắn lẫn thư mục tệp tải về. Có thể bật mã hóa cả tệp đã lưu.
 
 **Trợ lý AI**
-- **Mọi tính năng AI nằm ở panel bên phải**, mở bằng hai nút cạnh nhau trên thanh Mnemo: **✦ Trợ lý AI** và **Trợ lý viết** (bút có dấu tick). Mở cái này thì cái kia đóng lại; bấm lại nút đang mở để đóng panel. Không còn nút nổi cạnh con trỏ.
+- **Mọi tính năng AI nằm trong một panel bên phải** (nút ✦ trên thanh Mnemo), chọn tính năng bằng tab: **Hội thoại** (tóm tắt, gợi ý trả lời, hỏi đáp) và **Trợ lý viết**.
+- Trong ô soạn tin có **nút kiểm tra tròn ở góc dưới phải**: khi đang quét viền xoay; xong thì hiện số gợi ý. Bấm vào để mở tab Trợ lý viết.
+- Nút **Tải lại** trên thanh Mnemo mở lại trang của tài khoản đang xem (dùng được cả khi trang bị treo).
 - **Trợ lý viết** chỉ đọc **nội dung trong ô soạn tin** của tài khoản đang mở, không bao giờ đọc hay gửi cuộc trò chuyện. Mở panel thì bản nháp được kiểm tra ngay (hoặc nhấn **Ctrl+Shift+Space** trong ô soạn tin):
   - điểm 0–100, gợi ý theo 4 nhóm **Đúng** (đỏ), **Rõ ràng** (xanh dương), **Hấp dẫn** (xanh lá), **Giọng điệu** (tím), nhận xét giọng điệu, bật/tắt "Kiểm tra khi gõ";
   - tab **Gợi ý** (bấm một gợi ý thì chữ đó được tô sáng trong ô soạn tin), **Mục tiêu** (mức trang trọng, người nhận, mục đích, ngôn ngữ, từ điển riêng), **Viết** (trang trọng hơn, thân thiện hơn, ngắn gọn, mở rộng, đơn giản, hay hơn, skills, hoặc bảo AI viết; xong thì thay vào ô soạn tin);

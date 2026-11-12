@@ -147,10 +147,7 @@ pub fn tray_menu(app: &tauri::AppHandle, en: bool) -> tauri::Result<tauri::menu:
     let open = MenuItemBuilder::with_id("open", t("Mở Mnemo", "Open Mnemo")).build(app)?;
     let autostart = CheckMenuItemBuilder::with_id(
         "autostart",
-        t(
-            "Khởi động cùng Windows (chạy ở khay)",
-            "Start with Windows (in the tray)",
-        ),
+        t("Khởi động cùng Windows", "Start with Windows (in the tray)"),
     )
     .checked(s.start_with_windows)
     .build(app)?;
@@ -255,6 +252,7 @@ pub fn run() {
 
             // Started with Windows: stay in the tray, pages keep running and notifying.
             let hidden = std::env::args().any(|a| a == HIDDEN_ARG);
+            let start_minimized = hidden && app.state::<AppState>().settings().start_minimized;
             let window = WindowBuilder::new(app, webviews::MAIN)
                 .title("Mnemo")
                 .inner_size(1360.0, 860.0)
@@ -263,6 +261,12 @@ pub fn run() {
                 .visible(!hidden)
                 .build()?;
             build_tray(app)?;
+            if start_minimized {
+                // On the taskbar (with the unread count), not opened.
+                let _ = window.minimize();
+                let _ = window.show();
+                let _ = window.minimize();
+            }
             let scale = window.scale_factor().unwrap_or(1.0);
             let size = window.inner_size()?.to_logical::<f64>(scale);
             window.add_child(
@@ -297,6 +301,7 @@ pub fn run() {
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(800));
+                notify::warm_up(&handle);
                 let accounts = handle.state::<AppState>().settings().accounts;
                 for (i, a) in accounts.iter().filter(|a| !a.disabled).enumerate() {
                     // Created from this worker thread: creating a webview from the main

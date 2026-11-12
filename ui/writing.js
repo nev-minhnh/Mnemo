@@ -66,11 +66,13 @@ function writingUpdate(v) {
 function renderWriting(box) {
   const a = accountById(W.account);
   box.innerHTML = `
-    <div class="panel-head w-head"><span class="w-logo">${W_ICON}</span><b class="grow">Trợ lý viết</b>
+    <div class="panel-head">${ICON.sparkle}<b class="grow">Trợ lý AI</b>
       ${a ? `<span class="small muted ellipsis" data-noi18n style="max-width:120px">${esc(a.label)}</span>` : ''}
       <button class="btn icon ghost" id="pclose" title="Đóng">${ICON.close}</button></div>
+    ${featureTabs()}
     <div class="panel-body scroll" id="wbody"></div>`;
   $('#pclose').addEventListener('click', () => togglePanel(false));
+  bindFeatureTabs(box);
   renderWritingBody();
 }
 
@@ -87,7 +89,8 @@ function renderWritingBody() {
   body.innerHTML = `
     <div class="w-sum">${wRing(d.score, d.busy)}
       <div class="grow col" style="gap:2px"><b>Điểm tổng</b>
-        <span class="small muted">${d.busy ? 'Đang kiểm tra…' : !d.text ? 'Ô soạn tin đang trống.' : d.score == null ? 'Chưa kiểm tra' : issues.length ? `${issues.length} gợi ý` : 'Không thấy lỗi nào. 👍'}</span></div></div>
+        <span class="small muted">${d.busy ? 'Đang kiểm tra…' : !d.text ? 'Ô soạn tin đang trống.' : d.error ? 'Kiểm tra không thành công' : d.score == null ? 'Chưa kiểm tra' : issues.length ? `${issues.length} gợi ý` : 'Không thấy lỗi nào. 👍'}</span></div></div>
+    ${d.error ? `<div class="notice danger small" data-noi18n style="overflow-wrap:anywhere">${esc(d.error)}</div>` : ''}
     <div class="row wrap" style="gap:8px">
       <button class="btn gold sm" id="w-check" ${d.busy || !d.text ? 'disabled' : ''}>Kiểm tra lại</button>
       <button class="chip-toggle ${d.autoCheck ? 'on' : ''}" id="w-auto">Kiểm tra khi gõ</button>

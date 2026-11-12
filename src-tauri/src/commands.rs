@@ -227,11 +227,41 @@ pub fn show_page(app: AppHandle) {
 }
 
 #[tauri::command]
-pub fn reload_account(app: AppHandle, id: String) -> Result<(), String> {
-    let wv = app
-        .get_webview(&webviews::label_for(&id))
-        .ok_or("Tài khoản chưa mở")?;
-    wv.reload().map_err(|e| e.to_string())
+pub async fn reload_account(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    hard: Option<bool>,
+) -> Result<(), String> {
+    let label = webviews::label_for(&id);
+    if !hard.unwrap_or(false) {
+        let wv = app.get_webview(&label).ok_or("Tài khoản chưa mở")?;
+        return wv.reload().map_err(|e| e.to_string());
+    }
+    // A page that hangs may not answer a reload: close it and open a new one. The sign-in
+    // is on disk, so it comes back signed in.
+    let account = state
+        .settings()
+        .account(&id)
+        .cloned()
+        .ok_or("Không tìm thấy tài khoản")?;
+    let was_visible = lock(&state.visible).as_deref() == Some(id.as_str());
+    webviews::close_account(&app, &id);
+    lock(&state.page_unread).remove(&id);
+    lock(&state.writing).remove(&id);
+    for _ in 0..40 {
+        if app.get_webview(&label).is_none() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    if was_visible {
+        webviews::show_account(&app, &id)
+    } else {
+        let wv = webviews::ensure_account(&app, &account)?;
+        webviews::park(&app, &wv);
+        Ok(())
+    }
 }
 
 #[tauri::command]

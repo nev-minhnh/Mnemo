@@ -483,6 +483,9 @@ pub struct Settings {
     pub start_with_windows: bool,
     /// The window's close button hides Mnemo in the tray instead of quitting.
     pub close_to_tray: bool,
+    /// Started with Windows: minimised on the taskbar (icon and unread count showing)
+    /// instead of only in the tray.
+    pub start_minimized: bool,
     /// New accounts join a shared browser process (one per group) instead of starting their own.
     pub share_processes: bool,
     /// Turn off the browser's GPU acceleration (saves memory; calls and video less smooth).
@@ -509,6 +512,7 @@ impl Default for Settings {
             sidebar_pos: "top".into(),
             start_with_windows: false,
             close_to_tray: true,
+            start_minimized: false,
             share_processes: true,
             disable_gpu: false,
             notify: NotifySettings::default(),

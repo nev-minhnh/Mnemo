@@ -124,7 +124,12 @@ pub fn layout(app: &AppHandle) {
     };
     let (w, h) = inner_logical(&window);
     if let Some(shell) = app.get_webview(SHELL) {
-        place(&shell, LogicalPosition::new(0.0, 0.0), LogicalSize::new(w, h), false);
+        place(
+            &shell,
+            LogicalPosition::new(0.0, 0.0),
+            LogicalSize::new(w, h),
+            false,
+        );
     }
     let visible = lock(&app.state::<AppState>().visible)
         .as_deref()
@@ -337,7 +342,7 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let page_cfg = services::page_config(&state.config_dir, account.service);
     let profile = crate::profiles::dir(&state.config_dir, account);
     let gpu = if state.settings().disable_gpu {
-        " --disable-gpu --disable-gpu-compositing"
+        " --disable-gpu --disable-gpu-compositing --in-process-gpu"
     } else {
         ""
     };

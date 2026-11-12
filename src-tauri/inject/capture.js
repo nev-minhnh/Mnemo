@@ -606,6 +606,8 @@
   let issues = [], issuesEl = null, result = null, busy = false, checkSeq = 0;
   const CAT_COLOR = { correctness: '#f03c45', clarity: '#1a8cf8', engagement: '#2bb86a', delivery: '#8b5cf6' };
   const CATS = ['correctness', 'clarity', 'engagement', 'delivery'];
+  const CAT_LABEL = { correctness: 'Đúng', clarity: 'Rõ ràng', engagement: 'Hấp dẫn', delivery: 'Giọng điệu' };
+  let lastCount = 0;
   const SVG_CHECK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17.5 7.6 6.5 11.2 17.5M5.3 13.6h4.6"/><path d="m13.5 13.8 2.6 2.7 4.7-6"/></svg>';
   const esc2 = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -657,32 +659,37 @@
         .c{background:#12151c;box-shadow:0 2px 8px rgba(0,0,0,.35)}
         .c::before{content:"";position:absolute;inset:0;border-radius:50%;padding:2.5px;background:var(--ring,conic-gradient(#19d3ff 0 100%));
           -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
-        .c.scan::before{background:conic-gradient(from 0deg,transparent 0 50%,#19d3ff 70%,#9b4dff 85%,#ff9a2e 100%);animation:spin .9s linear infinite}
+        .c.scan::before{background:conic-gradient(from 0deg,#f03c45 0 62%,#ffb84a 62% 100%);animation:spin .9s linear infinite}
         .c.clean{color:#3fd29b}.c.clean::before{background:#3fd29b}
+        .c.err{color:#ffab4a}.c.err::before{background:#ffab4a}
         .c span{position:relative}
         @keyframes spin{to{transform:rotate(360deg)}}
         .ul{position:fixed;height:2px;border-radius:1px;pointer-events:none;transition:opacity .15s}
         .hl{position:fixed;border-radius:3px;pointer-events:none;animation:hl 1.6s ease-out forwards}
         @keyframes hl{0%{opacity:0;transform:scale(1.08)}15%{opacity:1;transform:none}75%{opacity:1}100%{opacity:.35}}
-        .card{position:fixed;display:none;width:300px;box-sizing:border-box;padding:10px 12px;border-radius:12px;
+.card{position:fixed;display:none;width:340px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:12px 14px;border-radius:14px;
           font:13px/1.45 "Segoe UI",system-ui,sans-serif;color:#eef1f7;background:#12151c;border:1px solid #252b39;
-          box-shadow:0 10px 30px rgba(0,0,0,.45);pointer-events:auto;opacity:0;transform:translateY(4px);transition:opacity .14s ease,transform .14s ease}
+          box-shadow:0 12px 34px rgba(0,0,0,.5);pointer-events:auto;opacity:0;transform:translateY(4px);transition:opacity .14s ease,transform .14s ease;
+          overflow-wrap:anywhere;word-break:break-word;white-space:normal}
         .card.in{opacity:1;transform:none}
-        .card .t{display:flex;align-items:center;gap:6px;color:#a9b0c1;font-size:12px;margin-bottom:4px}
-        .card .d{display:inline-block;width:8px;height:8px;border-radius:50%}
-        .card del{color:#ff8a92}
-        .card .fix{all:unset;cursor:pointer;color:#3fd29b;font-weight:700;border-radius:5px;padding:0 4px;margin-left:2px}
-        .card .fix:hover{background:rgba(63,210,155,.16);text-decoration:underline}
-        .card .x{color:#a9b0c1;font-size:12px;margin-top:4px}
-        .card .a{display:flex;gap:6px;margin-top:8px}
-        .card .a span{all:unset;cursor:pointer;padding:4px 10px;border-radius:7px;font-size:12px;background:#222836;color:#eef1f7}
-        .card .a span:hover{background:#2c3446}`);
+        .card .t{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;margin-bottom:6px}
+        .card .t i{font-style:normal;font-weight:400;color:#8a92a6}
+        .card .d{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;background:var(--c)}
+        .card .t b{color:var(--c)}
+        .card .h{font-size:14px;margin-bottom:6px}
+        .card del{display:block;color:#ff5a6e;margin-bottom:6px}
+        .card .fix{all:unset;display:block;box-sizing:border-box;max-width:100%;cursor:pointer;background:#2bb86a;color:#fff;font-weight:600;
+          border-radius:8px;padding:6px 12px;overflow-wrap:anywhere;transition:filter .12s}
+        .card .fix:hover{filter:brightness(1.1)}
+        .card .x{color:#c3c9d6;font-size:12.5px;margin-top:8px}
+        .card .a{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+        .card .a span{all:unset;cursor:pointer;padding:5px 12px;border-radius:8px;font-size:12.5px;border:1px solid #2c3446;color:#eef1f7}
+        .card .a span:hover{background:#222836}`);
       shadow.adoptedStyleSheets = [sheet];
     } catch (e) {}
     marks = document.createElement('div');
     glow = document.createElement('div');
     pair = document.createElement('div');
-    pair.style.display = 'none';
     pair.className = 'pair';
     badge = document.createElement('button');
     badge.className = 'b m';
@@ -695,7 +702,7 @@
     [badge, checker].forEach((b) => b.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); }));
     badge.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openAssist(); });
     checker.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openChecker(); });
-    pair.append(badge, checker);
+    pair.append(checker);
     card = document.createElement('div');
     card.className = 'card';
     card.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
@@ -706,9 +713,55 @@
   }
   // The Writing assistant lives in Mnemo's right-hand panel (its button sits beside the AI
   // assistant's in the Mnemo bar); the page only draws underlines and hover cards.
-  function placeBadge() { ensureBadge(); }
-  function hideBadge() {}
-  function paintChecker() {}
+  // The checker sits in the bottom-right corner of the message box (as Grammarly's does);
+  // clicking it opens the Writing tab of Mnemo's AI panel. Everything else is in that panel.
+  let badgeEl = null, checkError = '';
+  function placeBadge(el) {
+    ensureBadge();
+    if (!el || !document.contains(el)) { hideBadge(); return; }
+    const r = el.getBoundingClientRect();
+    if (r.width < 40 || r.height < 12 || !editableText(el).trim()) { hideBadge(); return; }
+    badgeEl = el;
+    const size = 28;
+    const x = Math.min(window.innerWidth - size - 4, Math.max(4, r.right - size - 6));
+    const y = r.height < 64 ? r.top + (r.height - size) / 2 : r.bottom - size - 6;
+    pair.style.left = x + 'px';
+    pair.style.top = Math.min(window.innerHeight - size - 4, Math.max(4, y)) + 'px';
+    if (!pair.classList.contains('on')) {
+      pair.classList.add('on');
+      requestAnimationFrame(() => pair.classList.add('in'));
+    }
+  }
+  function hideBadge() { badgeEl = null; if (pair) pair.classList.remove('on', 'in'); }
+  // Follows the box when the page lays out again; goes away with the box or its text.
+  setInterval(() => { if (badgeEl) placeBadge(badgeEl); }, 700);
+
+  // Scanning: a turning ring. Done: the number of suggestions on a ring split by category
+  // colour, or a green tick. Not checked yet: the pen-and-tick icon.
+  function paintChecker() {
+    if (!checker) return;
+    checker.classList.remove('scan', 'clean', 'err');
+    checker.style.removeProperty('--ring');
+    const icon = '<span>' + SVG_CHECK + '</span>';
+    // Scanning: the ring turns; the last count stays inside it while the draft is rechecked.
+    if (busy) { checker.classList.add('scan'); checker.innerHTML = lastCount ? '<span>' + lastCount + '</span>' : icon; checker.title = 'Đang kiểm tra…'; return; }
+    if (checkError) { checker.classList.add('err'); checker.innerHTML = '<span>!</span>'; checker.title = checkError; return; }
+    if (!result) { checker.innerHTML = icon; checker.title = 'Mnemo – kiểm tra chính tả, ngữ pháp, văn phong'; return; }
+    lastCount = Math.min(issues.length, 99);
+    if (!issues.length) { checker.classList.add('clean'); checker.innerHTML = '<span>✓</span>'; checker.title = 'Không thấy lỗi'; return; }
+    let at = 0;
+    const parts = [];
+    CATS.forEach((c) => {
+      const n = issues.filter((i) => i.category === c).length;
+      if (!n) return;
+      const end = at + (n / issues.length) * 100;
+      parts.push(`${CAT_COLOR[c]} ${at}% ${end}%`);
+      at = end;
+    });
+    checker.style.setProperty('--ring', `conic-gradient(${parts.join(',')})`);
+    checker.innerHTML = '<span>' + Math.min(issues.length, 99) + '</span>';
+    checker.title = issues.length + ' gợi ý' + (result.score != null ? ' · điểm ' + result.score : '') + ' – bấm để mở Trợ lý viết';
+  }
 
   // Tells Mnemo (the Writing assistant panel) what this draft looks like now.
   function report(open) {
@@ -717,10 +770,11 @@
       draft: {
         text: el ? editableText(el).slice(0, 20000) : '',
         busy,
+        error: checkError,
         score: result ? result.score : null,
         tone: result ? result.tone || '' : '',
         toneFits: result ? result.tone_fits !== false : true,
-        issues: issues.map((i) => ({ category: i.category, title: i.title, original: i.original, replacement: i.replacement, explanation: i.explanation })),
+        issues: issues.map((i) => ({ category: i.category, type: i.type, title: i.title, original: i.original, replacement: i.replacement, explanation: i.explanation })),
       },
       open: !!open,
     }).catch(() => {});
@@ -729,6 +783,7 @@
   function runCheck(el, text, force, openAfter) {
     const seq = ++checkSeq;
     busy = true;
+    checkError = '';
     lastChecked = text;
     paintChecker();
     report(openAfter);
@@ -745,6 +800,9 @@
     }).catch((e) => {
       if (seq !== checkSeq) return;
       busy = false;
+      // Say why (no key, wrong model name, the model's answer…) instead of "no problems".
+      checkError = String(e && e.message ? e.message : e).slice(0, 400);
+      result = null;
       paintChecker();
       report(false);
       log('check: ' + e);
@@ -778,7 +836,8 @@
     if (!isEditable(el)) return;
     lastEditable = el;
     // The text changed: old suggestions no longer line up with it.
-    if (issues.length || result) { issues = []; result = null; if (marks) marks.innerHTML = ''; hideCard(0); paintChecker(); report(false); }
+    if (!editableText(el).trim()) hideBadge();
+    if (issues.length || result || checkError) { issues = []; result = null; checkError = ''; if (marks) marks.innerHTML = ''; hideCard(0); paintChecker(); report(false); }
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       if (!runtime.assist) return;
@@ -790,10 +849,11 @@
     }, 900);
   }
   document.addEventListener('input', onTyping, true);
-  document.addEventListener('focusout', () => setTimeout(() => {
-    const a = document.activeElement;
-    if (!lastEditable || (a !== lastEditable && !lastEditable.contains(a))) hideBadge();
-  }, 250), true);
+  // A box that already holds a draft shows the checker as soon as it is focused.
+  document.addEventListener('focusin', () => {
+    const el = editableRoot(document.activeElement);
+    if (runtime.assist && isEditable(el) && editableText(el).trim().length >= 3) { lastEditable = el; placeBadge(el); }
+  }, true);
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.shiftKey && (e.code === 'Space' || e.key === ' ')) {
       const el = editableRoot(document.activeElement);
@@ -891,14 +951,18 @@
     if (shownIssue === it && card.classList.contains('in')) return;
     shownIssue = it;
     const color = CAT_COLOR[it.category] || CAT_COLOR.correctness;
-    card.innerHTML = `<div class="t"><span class="d" style="background:${color}"></span>${esc2(it.title || '')}</div>
-      <div><del>${esc2(it.original)}</del> → <button class="fix" title="Bấm để nhận gợi ý">${it.replacement ? esc2(it.replacement) : '(xóa)'}</button></div>
+    card.innerHTML = `<div class="t"><span class="d"></span><b>${CAT_LABEL[it.category] || ''}</b>${it.type ? `<i>· ${esc2(it.type)}</i>` : ''}</div>
+      ${it.title ? `<div class="h">${esc2(it.title)}</div>` : ''}
+      <del>${esc2(it.original)}</del>
+      <button class="fix" title="Bấm để nhận gợi ý">${it.replacement ? esc2(it.replacement) : '(xóa)'}</button>
       ${it.explanation ? `<div class="x">${esc2(it.explanation)}</div>` : ''}
       <div class="a"><span data-a="dismiss">Bỏ qua</span><span data-a="learn">Thêm vào từ điển</span></div>`;
+    // Set through the style object: a page's content policy can block style attributes.
+    card.style.setProperty('--c', color);
     card.querySelector('.fix').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); act(it, 'accept'); });
     card.querySelectorAll('[data-a]').forEach((b) => b.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); act(it, b.dataset.a); }));
     card.style.display = 'block';
-    const w = 300, h = card.offsetHeight || 120;
+    const w = card.offsetWidth || 340, h = card.offsetHeight || 120;
     const x = Math.min(window.innerWidth - w - 8, Math.max(8, rect.left));
     let y = rect.top - h - 8;
     if (y < 8) y = rect.bottom + 8;

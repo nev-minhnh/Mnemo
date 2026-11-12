@@ -88,8 +88,8 @@ function renderSidebar() {
     ${barHorizontal() ? `<div class="add-fixed">${addBtn}</div>` : ''}
     <div class="side-nav">
       <button class="side-item side-collapse" id="collapse" title="${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}"><span class="chev">${barHorizontal() ? (compact ? '»' : '«') : (compact !== (barPos() === 'right') ? '›' : '‹')}</span><span class="side-label">${compact ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}</span></button>
-      <button class="side-item ${panelOpen && panel.mode !== 'writing' ? 'active' : ''}" data-panel="ai" title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>
-      <button class="side-item ${panelOpen && panel.mode === 'writing' ? 'active' : ''}" data-panel="writing" title="Trợ lý viết (Ctrl+Shift+Space trong ô soạn tin)">${ICON.pencheck}<span class="side-label">Trợ lý viết</span></button>
+      ${visible ? `<button class="side-item" id="acc-refresh" title="Tải lại tài khoản đang mở (khi trang bị treo)">${ICON.refresh}<span class="side-label">Tải lại tài khoản này</span></button>` : ''}
+      <button class="side-item ${panelOpen ? 'active' : ''}" data-panel title="Trợ lý AI">${ICON.sparkle}<span class="side-label">Trợ lý AI</span></button>
       ${nav('archive', 'archive', 'Kho tin nhắn')}
       ${nav('media', 'media', 'Tệp đã lưu')}
       ${nav('import', 'import', 'Nhập tệp xuất')}
@@ -103,14 +103,21 @@ function renderSidebar() {
   });
   // Both AI features share the right-hand panel: opening one closes the other, clicking
   // the open one again closes the panel.
-  sb.querySelectorAll('[data-panel]').forEach((b) => b.addEventListener('click', () => {
-    const mode = b.dataset.panel;
-    if (panelOpen && (panel.mode || 'ai') === mode) { togglePanel(false); return; }
-    if (mode === 'writing') { openWriting(visible); return; }
-    const switching = panelOpen;
-    panel.mode = 'ai';
-    if (switching) { enter($('#panel')); renderPanel(); renderSidebar(); } else togglePanel(true);
-  }));
+  // One AI panel; its tabs pick the feature (conversation / writing).
+  sb.querySelector('[data-panel]').addEventListener('click', () => {
+    if (panelOpen) { togglePanel(false); return; }
+    if (panel.mode === 'writing') openWriting(visible); else togglePanel(true);
+  });
+  const rf = sb.querySelector('#acc-refresh');
+  if (rf) rf.addEventListener('click', async () => {
+    if (!visible || rf.disabled) return;
+    rf.disabled = true;
+    rf.classList.add('spin');
+    // Closes the page and opens a new one, so it works even when the page has hung.
+    try { await invoke('reload_account', { id: visible, hard: true }); toast('Đã tải lại'); } catch (e) { toast(errText(e), true); }
+    rf.disabled = false;
+    rf.classList.remove('spin');
+  });
   sb.querySelector('[data-add]').addEventListener('click', (e) => {
     // A popover next to the + button, over whatever is open (no trip to the home page).
     const r = e.currentTarget.getBoundingClientRect();
@@ -735,7 +742,10 @@ async function renderSettings(main) {
 
     <div class="section"><h2>Khởi động &amp; khay hệ thống</h2><div class="card pad"><div class="form">
       <span class="label">Khởi động cùng Windows</span><label class="check"><span class="switch"><input type="checkbox" id="autostart" ${s.start_with_windows ? 'checked' : ''}><span></span></span>Bật</label>
-      <span class="hint">Mnemo chạy ẩn ở khay hệ thống (góc taskbar), không mở cửa sổ; tin nhắn vẫn được lưu và thông báo vẫn hiện.</span>
+      <span class="label">Khi khởi động cùng Windows</span><select id="start-mode" style="width:340px">
+        <option value="1" ${s.start_minimized ? 'selected' : ''}>Thu nhỏ trên taskbar (hiện icon và số chưa đọc)</option>
+        <option value="" ${s.start_minimized ? '' : 'selected'}>Chỉ ở khay hệ thống (không hiện trên taskbar)</option></select>
+      <span class="hint">Cả hai cách đều không mở cửa sổ; tin nhắn vẫn được lưu và thông báo vẫn hiện.</span>
       <span class="label">Bấm × thì thu về khay</span><label class="check"><span class="switch"><input type="checkbox" data-s="close_to_tray" ${s.close_to_tray ? 'checked' : ''}><span></span></span>Bật</label>
       <span class="hint">Nút × chỉ ẩn cửa sổ. Thoát hẳn bằng chuột phải vào biểu tượng Mnemo ở khay → Thoát Mnemo.</span>
       <span class="label"></span><div><button class="btn danger" id="quit">${ICON.close} Thoát Mnemo ngay</button></div>
@@ -746,7 +756,7 @@ async function renderSettings(main) {
       <div class="col"><label class="check"><span class="switch"><input type="checkbox" id="share" ${s.share_processes ? 'checked' : ''}><span></span></span>Bật</label><div id="share-note"></div></div>
       <span class="hint">Mỗi tài khoản mặc định chạy một bộ trình duyệt riêng (GPU, mạng, lưu trữ…), mất vài trăm MB mỗi bộ. Khi gộp, các tài khoản của các ứng dụng khác nhau chạy chung một bộ; hai tài khoản của cùng một ứng dụng vẫn tách riêng. Tin nhắn, cài đặt và tệp không bị ảnh hưởng.</span>
       <span class="label">Tắt tăng tốc phần cứng (GPU)</span><label class="check"><span class="switch"><input type="checkbox" id="nogpu" ${s.disable_gpu ? 'checked' : ''}><span></span></span>Bật</label>
-      <span class="hint">Bớt thêm vài trăm MB của tiến trình GPU; cuộn trang và gọi video có thể kém mượt hơn. Có hiệu lực sau khi khởi động lại Mnemo.</span>
+      <span class="hint">Trang được vẽ bằng CPU và phần đồ họa chạy chung trong tiến trình trình duyệt, nên không còn tiến trình GPU riêng; cuộn trang và gọi video có thể kém mượt hơn. Có hiệu lực sau khi khởi động lại Mnemo.</span>
       <span class="label"></span><span class="hint" style="grid-column:2;margin-top:0">Tài khoản đang không hiển thị luôn được hạ mức dùng bộ nhớ nhưng vẫn chạy, nên vẫn nhận tin và thông báo.</span>
     </div></div></div>
 
@@ -778,6 +788,7 @@ async function renderSettings(main) {
       try { await invoke('share_processes', { enabled: on }); } catch (err) { toast(errText(err), true); ev.currentTarget.disabled = false; }
     });
   });
+  $('#start-mode').addEventListener('change', (e) => { s.start_minimized = !!e.target.value; saveSettingsSoon(); });
   $('#nogpu').addEventListener('change', async (e) => {
     s.disable_gpu = e.target.checked;
     saveSettingsSoon();
@@ -1058,6 +1069,21 @@ function toLocalInput(ms) {
   return d.toISOString().slice(0, 16);
 }
 
+// The AI panel's features, as tabs under its title.
+function featureTabs() {
+  const w = panel.mode === 'writing';
+  return `<div class="ftabs"><button data-feature="ai" class="${w ? '' : 'on'}">${ICON.sparkle}Hội thoại</button><button data-feature="writing" class="${w ? 'on' : ''}">${ICON.pencheck}Trợ lý viết</button></div>`;
+}
+function bindFeatureTabs(box) {
+  box.querySelectorAll('[data-feature]').forEach((b) => b.addEventListener('click', () => {
+    const mode = b.dataset.feature;
+    if ((panel.mode || 'ai') === mode) return;
+    if (mode === 'writing') { openWriting(visible); return; }
+    panel.mode = 'ai';
+    renderPanel();
+  }));
+}
+
 async function renderPanel() {
   const box = $('#panel');
   if (!panelOpen || !S) return;
@@ -1070,12 +1096,14 @@ async function renderPanel() {
   if (!panel.from) { panel.from = toLocalInput(Date.now() - 24 * 3600 * 1000); panel.to = toLocalInput(Date.now()); }
   box.innerHTML = `
     <div class="panel-head">${ICON.sparkle}<b class="grow">Trợ lý AI</b><button class="btn icon ghost" id="pclose" title="Đóng">${ICON.close}</button></div>
+    ${featureTabs()}
     <div class="panel-body scroll">
       <div id="pchoice"></div>
       <div class="tabs"><button data-tab="one" class="${panel.tab === 'one' ? 'active' : ''}">Hội thoại này</button><button data-tab="multi" class="${panel.tab === 'multi' ? 'active' : ''}">Nhiều hội thoại</button></div>
       <div id="ptab"></div>
     </div>`;
   $('#pclose').addEventListener('click', () => togglePanel(false));
+  bindFeatureTabs(box);
   choiceBar($('#pchoice'), S.settings.ai.chat, S.providers, (c) => invoke('assist_save_choice', { choice: c, panel: true }));
   box.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { panel.tab = b.dataset.tab; renderPanel(); }));
   if (panel.tab === 'one') renderPanelOne($('#ptab'), target);

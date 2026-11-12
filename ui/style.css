@@ -425,3 +425,16 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 .card, .svc-card { contain: layout paint; }
 .btn, .side-item, .acc-row, .chip, .tile, .app-tile { transition: background-color .14s ease, color .14s ease, border-color .14s ease, box-shadow .14s ease, transform .14s ease, opacity .14s ease; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---------- AI panel: feature tabs, long suggestions wrap ---------- */
+.ftabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--border); flex: none; }
+.ftabs button { display: flex; align-items: center; gap: 6px; padding: 7px 12px 9px; border: 0; background: none; color: var(--text-2); cursor: pointer; font-size: 13px; position: relative; border-radius: 8px 8px 0 0; transition: color .14s, background-color .14s; }
+.ftabs button:hover { background: var(--surface-2); }
+.ftabs button svg { width: 15px; height: 15px; }
+.ftabs button.on { color: var(--text); font-weight: 600; }
+.ftabs button.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--brand); }
+.w-item, .w-item *, .w-result, .panel .result { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+.w-item .row { align-items: flex-start; }
+.w-item .w-dot { margin-top: 6px; }
+#acc-refresh.spin svg { animation: w-spin2 .8s linear infinite; }
+@keyframes w-spin2 { to { transform: rotate(360deg); } }

@@ -80,7 +80,46 @@ fn place(app: &AppHandle, count: usize) {
             y.round() as i32,
         ));
     }
+    show_inactive(&w);
+}
+
+/// Shows the notification window without making it the active window: an ordinary show
+/// activates it, which takes the keyboard away from the message you are typing.
+fn show_inactive(w: &tauri::WebviewWindow) {
+    if w.is_visible().unwrap_or(false) {
+        return;
+    }
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            HWND_TOPMOST, SW_SHOWNOACTIVATE, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetWindowPos,
+            ShowWindow,
+        };
+        if let Ok(h) = w.hwnd() {
+            let hwnd = HWND(h.0 as _);
+            unsafe {
+                let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+                let _ = SetWindowPos(
+                    hwnd,
+                    Some(HWND_TOPMOST),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                );
+            }
+            return;
+        }
+    }
     let _ = w.show();
+}
+
+/// Creates the (hidden) notification window ahead of time, so the first notification
+/// doesn't build a window while you type.
+pub fn warm_up(app: &AppHandle) {
+    let _ = notify_window(app);
 }
 
 fn publish(app: &AppHandle) {
