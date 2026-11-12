@@ -227,18 +227,43 @@ pub fn set_unread(app: &AppHandle, account_id: &str, count: u32) {
     let before = lock(&state.unread).insert(account_id.to_string(), count);
     let changed = before != Some(count);
     if let Some(b) = before {
-        if count > b {
-            crate::notify::unread_rose(app, account_id, b, count);
-        }
         if count == 0 && b > 0 {
             // Read in the app itself (or on the phone).
             lock(&state.pending).remove(account_id);
-            lock(&state.shown).remove(account_id);
+        }
+    }
+    if changed {
+        let now = crate::util::now_ms();
+        let rose_from = {
+            let mut peaks = lock(&state.peak);
+            // The first count of a run is where it starts, not news.
+            let p = peaks
+                .entry(account_id.to_string())
+                .or_insert((before.unwrap_or(count), now));
+            *p = next_peak(*p, before.unwrap_or(count), count, now);
+            let from = (count > p.0).then_some(p.0);
+            p.0 = p.0.max(count);
+            from
+        };
+        if let Some(from) = rose_from {
+            crate::notify::unread_rose(app, account_id, from, count);
         }
     }
     if changed {
         publish_count(app, account_id);
     }
+}
+
+/// A lower count that held for a minute was really read (here or on the phone) and becomes
+/// the new mark; a brief dip (the app redrawing its list) leaves the mark where it was.
+const SETTLED_MS: i64 = 60_000;
+fn next_peak(peak: (u32, i64), before: u32, _count: u32, now: i64) -> (u32, i64) {
+    let mark = if before < peak.0 && now - peak.1 >= SETTLED_MS {
+        before
+    } else {
+        peak.0
+    };
+    (mark, now)
 }
 
 /// What the badges show for an account: the app's own unread count, or the notifications
@@ -282,6 +307,11 @@ pub fn notified(app: &AppHandle, account_id: &str) {
 /// The person is looking at the account.
 pub fn seen(app: &AppHandle, account_id: &str) {
     lock(&app.state::<AppState>().shown).remove(account_id);
+    {
+        let state = app.state::<AppState>();
+        let unread = lock(&state.unread).get(account_id).copied().unwrap_or(0);
+        lock(&state.peak).insert(account_id.to_string(), (unread, crate::util::now_ms()));
+    }
     if lock(&app.state::<AppState>().pending)
         .remove(account_id)
         .is_some()
@@ -591,12 +621,13 @@ pub fn hide_assist(app: &AppHandle) {
 /// - Tauri's own defaults;
 /// - never slow down or freeze a page because it isn't on screen, so messages, calls and
 ///   notifications keep arriving live.
-/// Hardware acceleration is half on: the GPU puts the page together and scrolls it (smooth,
-/// light on the battery), the CPU draws the content (`--disable-gpu-rasterization`), which
-/// keeps the GPU process smaller than with everything on the GPU.
+/// Hardware acceleration stays on (smooth scrolling, light on the battery), with a ceiling
+/// on what the GPU process may keep for drawn pages (`--force-gpu-mem-*`): beyond it the
+/// browser drops what is off screen and draws it again when needed.
 pub const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
      --disable-background-timer-throttling --disable-renderer-backgrounding \
-     --disable-backgrounding-occluded-windows --disable-gpu-rasterization";
+     --disable-backgrounding-occluded-windows \
+     --force-gpu-mem-available-mb=256 --force-gpu-mem-discardable-limit-mb=96";
 
 /// The data folder of Mnemo's own windows (the bar, notifications, popovers): the accounts'
 /// folder holding the most accounts, so the interface runs inside that browser instead of
@@ -757,6 +788,14 @@ pub fn picker_close(app: AppHandle) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn brief_dips_keep_the_mark() {
+        // 3 announced; the list redraws (0) and comes back: still 3, nothing new.
+        assert_eq!(super::next_peak((3, 0), 0, 3, 2_000).0, 3);
+        // Read (0 for over a minute), then one new message: the mark drops to 0.
+        assert_eq!(super::next_peak((3, 0), 0, 1, 61_000).0, 0);
+    }
+
     #[test]
     fn unread_titles() {
         assert_eq!(super::unread_from_title("(3) WhatsApp"), 3);

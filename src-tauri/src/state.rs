@@ -44,6 +44,10 @@ pub struct AppState {
     /// Per account: notifications received since the person last looked at it. Counted as
     /// unread when the app's page reports no (or a smaller) count of its own.
     pub pending: Mutex<HashMap<String, u32>>,
+    /// Per account: the unread count already announced, and when the count last changed.
+    /// A count that only comes back up to it (apps redraw their chat list, and the count
+    /// read from it dips meanwhile) is not announced again.
+    pub peak: Mutex<HashMap<String, (u32, i64)>>,
     /// Per account: notifications already shown (sender + text → when), so an app repeating
     /// the same one doesn't pop up again. Forgotten when the person looks at the account.
     pub shown: Mutex<HashMap<String, HashMap<String, i64>>>,

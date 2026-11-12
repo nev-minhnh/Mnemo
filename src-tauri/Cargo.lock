@@ -2472,7 +2472,7 @@ dependencies = [
 
 [[package]]
 name = "mnemo"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "aes-gcm",
  "base64 0.23.1",

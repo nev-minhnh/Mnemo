@@ -27,6 +27,9 @@ function schedule(id) {
 }
 
 function render(list) {
+  // The window is hidden while the pointer may still be over it (after closing the last
+  // one), and then never hears it leave: a later notification would wait forever.
+  if (!list.length) hovered = false;
   const box = $('#list');
   // Newest at the bottom, next to the taskbar; only the latest few.
   const shown = list.slice(0, 4).reverse();
