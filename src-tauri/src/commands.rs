@@ -29,7 +29,7 @@ pub fn get_state(app: AppHandle, state: State<'_, AppState>) -> Value {
         "version": app.package_info().version.to_string(),
         "settings": s,
         "services": services,
-        "unread": *lock(&state.unread),
+        "unread": webviews::counts(&state),
         "stats": *lock(&state.stats),
         "context": *lock(&state.context),
         "visible": *lock(&state.visible),

@@ -12,6 +12,52 @@
   window.__MNEMO_STARTED__ = true;
   const cfg = M.cfg || {};
 
+  // ---------- out of sight ----------
+  // Mnemo hides the pages nobody is looking at, so the browser stops drawing them. The app
+  // must not notice (WhatsApp and others drop their connection when told they went to the
+  // background), so it keeps hearing "visible"; and its animation frames, which a hidden
+  // page no longer gets, tick a few times a second instead, so the app still keeps its
+  // content up to date (unread counts, new messages) without drawing anything.
+  (function () {
+    const realState = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+    if (!realState || !realState.get) return;
+    const shown = () => realState.get.call(document) === 'visible';
+    try {
+      Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get: () => 'visible' });
+      Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get: () => false });
+    } catch (_) { return; }
+    const nativeRaf = window.requestAnimationFrame.bind(window);
+    const SLOW = 250;
+    let queue = new Map(), nextId = 1, armedNative = false, timer = 0;
+    function flush() {
+      const run = queue;
+      queue = new Map();
+      const now = performance.now();
+      run.forEach((cb) => { try { cb(now); } catch (e) { setTimeout(() => { throw e; }); } });
+    }
+    function arm() {
+      if (shown()) {
+        if (!armedNative) { armedNative = true; nativeRaf(() => { armedNative = false; flush(); }); }
+      } else if (!timer) {
+        timer = setTimeout(() => { timer = 0; flush(); }, SLOW);
+      }
+    }
+    window.requestAnimationFrame = function (cb) {
+      const id = nextId++;
+      queue.set(id, cb);
+      arm();
+      return id;
+    };
+    window.cancelAnimationFrame = function (id) { queue.delete(id); };
+    const swallow = (e) => {
+      e.stopImmediatePropagation();
+      // Frames asked for just before the page went out of sight would wait until it is back.
+      if (queue.size) arm();
+    };
+    window.addEventListener('visibilitychange', swallow, true);
+    window.addEventListener('webkitvisibilitychange', swallow, true);
+  })();
+
   // ---------- IPC ----------
   function invoke(cmd, args) {
     const ipc = window.__TAURI_INTERNALS__;

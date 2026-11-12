@@ -109,6 +109,7 @@ fn build_state(app: &tauri::App) -> Result<AppState, Box<dyn std::error::Error>>
         archive_error: Mutex::new(archive_error),
         key: Mutex::new(key),
         unread: Mutex::new(HashMap::new()),
+        pending: Mutex::new(HashMap::new()),
         stats: Mutex::new(HashMap::new()),
         context: Mutex::new(HashMap::new()),
         visible: Mutex::new(None),
@@ -285,7 +286,15 @@ pub fn run() {
             window.on_window_event(move |e| match e {
                 WindowEvent::Resized(_)
                 | WindowEvent::ScaleFactorChanged { .. }
-                | WindowEvent::Focused(true) => webviews::layout(&handle),
+                | WindowEvent::Focused(true) => {
+                    if matches!(e, WindowEvent::Focused(true)) {
+                        let shown = lock(&handle.state::<AppState>().visible).clone();
+                        if let Some(id) = shown {
+                            webviews::seen(&handle, &id);
+                        }
+                    }
+                    webviews::layout(&handle)
+                }
                 WindowEvent::CloseRequested { api, .. } => {
                     if handle.state::<AppState>().settings().close_to_tray {
                         api.prevent_close();

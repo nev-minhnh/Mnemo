@@ -75,10 +75,12 @@ fn account_rect(
     )
 }
 
-/// Where an account that isn't shown waits: just outside the window, at full size.
-/// Hiding a WebView2 tells the page it went to the background, and apps such as WhatsApp
-/// then drop their connection and load again from scratch when you come back; a parked
-/// page keeps running exactly as it was, so switching accounts is instant.
+/// Where an account that isn't shown waits: just outside the window, at full size (so it
+/// doesn't lay out again when it comes back), and hidden, so the browser draws nothing for
+/// it. Hiding a WebView2 tells the page it went to the background, and apps such as
+/// WhatsApp then drop their connection and load again from scratch when you come back; the
+/// page script therefore keeps telling the app it is visible (see "out of sight" there),
+/// and the page keeps running: messages and notifications still arrive.
 fn parked(size: &LogicalSize<f64>) -> LogicalPosition<f64> {
     LogicalPosition::new(-(size.width + 400.0), 0.0)
 }
@@ -109,7 +111,7 @@ pub fn memory_level(wv: &Webview, low: bool) {
     let _ = (wv, low);
 }
 
-/// Moves an account's page out of sight without pausing it.
+/// Moves an account's page out of sight: it keeps running but is no longer drawn.
 pub fn park(app: &AppHandle, wv: &Webview) {
     if let Some(window) = app.get_window(MAIN) {
         let (_, size) = account_rect(app, &window);
@@ -135,7 +137,7 @@ pub fn layout(app: &AppHandle) {
         .as_deref()
         .map(label_for);
     let (pos, size) = account_rect(app, &window);
-    // Mnemo in the tray or minimised: every page goes to low memory, the shown one too.
+    // Mnemo in the tray or minimised: no page is drawn, the shown one included.
     let away = !window.is_visible().unwrap_or(true) || window.is_minimized().unwrap_or(false);
     for wv in app.webviews().values() {
         if !wv.label().starts_with("acc-") {
@@ -165,23 +167,26 @@ pub fn layout(app: &AppHandle) {
 /// Last place, size and memory level given to each page. Moving or resizing a WebView2 makes
 /// its page lay out again, so nothing is sent when nothing changed (layout runs on every
 /// focus and resize of the window).
-static PLACED: std::sync::Mutex<Option<std::collections::HashMap<String, [i64; 5]>>> =
+static PLACED: std::sync::Mutex<Option<std::collections::HashMap<String, [i64; 6]>>> =
     std::sync::Mutex::new(None);
 
-fn place(wv: &Webview, at: LogicalPosition<f64>, size: LogicalSize<f64>, low: bool) {
+/// `out` = out of sight: hidden (not drawn) and kept at low memory.
+fn place(wv: &Webview, at: LogicalPosition<f64>, size: LogicalSize<f64>, out: bool) {
+    let low = out;
     let key = [
         at.x.round() as i64,
         at.y.round() as i64,
         size.width.round() as i64,
         size.height.round() as i64,
         low as i64,
+        out as i64,
     ];
     let mut g = PLACED.lock().unwrap_or_else(|e| e.into_inner());
     let before = g
         .get_or_insert_with(std::collections::HashMap::new)
         .insert(wv.label().to_string(), key);
     drop(g);
-    let before = before.unwrap_or([i64::MIN; 5]);
+    let before = before.unwrap_or([i64::MIN; 6]);
     if before[2..4] != key[2..4] {
         let _ = wv.set_size(size);
     }
@@ -190,6 +195,9 @@ fn place(wv: &Webview, at: LogicalPosition<f64>, size: LogicalSize<f64>, low: bo
     }
     if before[4] != key[4] {
         memory_level(wv, low);
+    }
+    if before[5] != key[5] {
+        let _ = if out { wv.hide() } else { wv.show() };
     }
 }
 
@@ -222,14 +230,61 @@ pub fn set_unread(app: &AppHandle, account_id: &str, count: u32) {
         if count > b {
             crate::notify::unread_rose(app, account_id, b, count);
         }
+        if count == 0 && b > 0 {
+            // Read in the app itself (or on the phone).
+            lock(&state.pending).remove(account_id);
+        }
     }
     if changed {
-        crate::notify::update_taskbar(app);
-        let _ = app.emit_to(
-            SHELL,
-            "unread",
-            serde_json::json!({ "account": account_id, "count": count }),
-        );
+        publish_count(app, account_id);
+    }
+}
+
+/// What the badges show for an account: the app's own unread count, or the notifications
+/// received since the person last looked at it when that is more (some apps report none).
+pub fn count_for(state: &AppState, account_id: &str) -> u32 {
+    let unread = lock(&state.unread).get(account_id).copied().unwrap_or(0);
+    let pending = lock(&state.pending).get(account_id).copied().unwrap_or(0);
+    unread.max(pending)
+}
+
+pub fn counts(state: &AppState) -> std::collections::HashMap<String, u32> {
+    let mut ids: Vec<String> = lock(&state.unread).keys().cloned().collect();
+    ids.extend(lock(&state.pending).keys().cloned());
+    ids.into_iter()
+        .map(|id| {
+            let n = count_for(state, &id);
+            (id, n)
+        })
+        .collect()
+}
+
+/// Sends an account's count to the bar and the taskbar.
+pub fn publish_count(app: &AppHandle, account_id: &str) {
+    let count = count_for(&app.state::<AppState>(), account_id);
+    crate::notify::update_taskbar(app);
+    let _ = app.emit_to(
+        SHELL,
+        "unread",
+        serde_json::json!({ "account": account_id, "count": count }),
+    );
+}
+
+/// A notification arrived for an account the person isn't looking at.
+pub fn notified(app: &AppHandle, account_id: &str) {
+    *lock(&app.state::<AppState>().pending)
+        .entry(account_id.to_string())
+        .or_insert(0) += 1;
+    publish_count(app, account_id);
+}
+
+/// The person is looking at the account.
+pub fn seen(app: &AppHandle, account_id: &str) {
+    if lock(&app.state::<AppState>().pending)
+        .remove(account_id)
+        .is_some()
+    {
+        publish_count(app, account_id);
     }
 }
 
@@ -423,9 +478,9 @@ pub fn show_account(app: &AppHandle, account_id: &str) -> Result<(), String> {
     }
     let wv = ensure_account(app, &account)?;
     *lock(&state.visible) = Some(account_id.to_string());
-    // The others are parked, not hidden, so their pages keep running.
+    seen(app, account_id);
+    // The others go out of sight (not drawn); their pages keep running.
     layout(app);
-    let _ = wv.show();
     let _ = wv.set_focus();
     let _ = app.emit_to(
         SHELL,

@@ -221,6 +221,9 @@ pub async fn mnemo_notify(
     if main_focused && visible && same_chat {
         return Ok(());
     }
+    if !(main_focused && visible) {
+        webviews::notified(&app, &account.id);
+    }
     let text = if s.notify.show_content {
         crate::util::truncate_chars(notice.body.trim(), 600)
     } else {
@@ -467,10 +470,7 @@ pub fn update_taskbar(app: &AppHandle) {
     let state = app.state::<AppState>();
     let s = state.settings();
     let ids: Vec<String> = s.accounts.iter().map(|a| a.id.clone()).collect();
-    let total: u32 = {
-        let u = lock(&state.unread);
-        ids.iter().filter_map(|id| u.get(id)).sum()
-    };
+    let total: u32 = ids.iter().map(|id| webviews::count_for(&state, id)).sum();
     if let Some(tray) = app.tray_by_id("mnemo") {
         let tip = if total > 0 {
             if s.language == "en" {
@@ -499,6 +499,14 @@ pub fn update_taskbar(app: &AppHandle) {
             None
         };
         let _ = w.set_overlay_icon(icon);
+        // Also drawn into the icon itself: Windows hides overlay icons when "Show badges on
+        // taskbar apps" is off, and never shows them in Alt+Tab.
+        let badged = (s.notify.taskbar_badge && total > 0)
+            .then(|| icon_with_badge(total))
+            .flatten();
+        if let Some(icon) = badged.or_else(|| app.default_window_icon().cloned()) {
+            let _ = w.set_icon(icon);
+        }
     }
     #[cfg(not(windows))]
     {
@@ -510,8 +518,48 @@ pub fn update_taskbar(app: &AppHandle) {
     }
 }
 
+/// Mnemo's icon (128×128) with the count badge over its bottom-right quarter.
+pub fn icon_with_badge(count: u32) -> Option<tauri::image::Image<'static>> {
+    let base = tauri::image::Image::from_bytes(include_bytes!("../icons/128x128.png")).ok()?;
+    let (w, h) = (base.width() as usize, base.height() as usize);
+    let mut px = base.rgba().to_vec();
+    let badge = badge_rgba(count);
+    const K: usize = 2; // 32 → 64 px
+    if w < 32 * K || h < 32 * K {
+        return None;
+    }
+    let (ox, oy) = (w - 32 * K, h - 32 * K);
+    for y in 0..32 * K {
+        for x in 0..32 * K {
+            let b = &badge[((y / K) * 32 + x / K) * 4..][..4];
+            let a = b[3] as u32;
+            if a == 0 {
+                continue;
+            }
+            let d = &mut px[((oy + y) * w + ox + x) * 4..][..4];
+            for c in 0..3 {
+                d[c] = ((b[c] as u32 * a + d[c] as u32 * (255 - a)) / 255) as u8;
+            }
+            d[3] = d[3].max(b[3]);
+        }
+    }
+    Some(tauri::image::Image::new_owned(px, w as u32, h as u32))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn icon_gets_a_badge() {
+        let plain =
+            tauri::image::Image::from_bytes(include_bytes!("../icons/128x128.png")).unwrap();
+        let badged = super::icon_with_badge(7).expect("icon");
+        assert_eq!(
+            (badged.width(), badged.height()),
+            (plain.width(), plain.height())
+        );
+        assert_ne!(badged.rgba(), plain.rgba());
+    }
+
     #[test]
     fn sender_count() {
         let n = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();

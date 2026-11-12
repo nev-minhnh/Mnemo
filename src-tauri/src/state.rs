@@ -41,6 +41,9 @@ pub struct AppState {
     pub key: Mutex<Option<Key>>,
     pub secrets: Mutex<Secrets>,
     pub unread: Mutex<HashMap<String, u32>>,
+    /// Per account: notifications received since the person last looked at it. Counted as
+    /// unread when the app's page reports no (or a smaller) count of its own.
+    pub pending: Mutex<HashMap<String, u32>>,
     pub stats: Mutex<HashMap<String, CaptureStats>>,
     pub context: Mutex<HashMap<String, LiveContext>>,
     pub visible: Mutex<Option<String>>,
