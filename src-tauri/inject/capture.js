@@ -317,7 +317,11 @@
     if (!u || !u.row) return;
     const names = [];
     for (const row of qa(document, u.row)) {
-      const marked = u.badge ? (row.matches(u.badge) || !!q(row, u.badge)) : true;
+      if (u.skipRow && q(row, u.skipRow)) continue;
+      // badgeDigits: the badge has no stable class name; it is the element showing a count.
+      const marked = u.badgeDigits
+        ? qa(row, u.badgeDigits).some((b) => /^\d[\d.,]*\s*[KkMm]?\+?$/.test((b.textContent || '').trim()))
+        : (u.badge ? (row.matches(u.badge) || !!q(row, u.badge)) : true);
       if (!marked) continue;
       const n = field(row, u.name || { attr: 'text' }).split('\n')[0].trim();
       if (n && names.indexOf(n) === -1) names.push(n);

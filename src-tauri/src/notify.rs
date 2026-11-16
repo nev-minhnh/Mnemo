@@ -527,20 +527,14 @@ pub fn update_taskbar(app: &AppHandle) {
     });
     #[cfg(windows)]
     {
-        // The count is drawn into the icon itself (Windows hides overlay icons when "Show
-        // badges on taskbar apps" is off), and only when it changed.
+        // The count sits on the taskbar icon as an overlay badge, redrawn only when it
+        // changed.
         static LAST: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(-1);
         let badge = if s.notify.taskbar_badge { total } else { 0 };
         if LAST.swap(badge as i64, std::sync::atomic::Ordering::Relaxed) != badge as i64 {
-            let _ = w.set_overlay_icon(None);
-            let icon = if badge > 0 {
-                icon_with_badge(badge)
-            } else {
-                app.default_window_icon().cloned()
-            };
-            if let Some(icon) = icon {
-                let _ = w.set_icon(icon);
-            }
+            let icon =
+                (badge > 0).then(|| tauri::image::Image::new_owned(badge_rgba(badge), 32, 32));
+            let _ = w.set_overlay_icon(icon);
         }
     }
     #[cfg(not(windows))]
@@ -553,48 +547,8 @@ pub fn update_taskbar(app: &AppHandle) {
     }
 }
 
-/// Mnemo's icon (128×128) with the count badge over its bottom-right quarter.
-pub fn icon_with_badge(count: u32) -> Option<tauri::image::Image<'static>> {
-    let base = tauri::image::Image::from_bytes(include_bytes!("../icons/128x128.png")).ok()?;
-    let (w, h) = (base.width() as usize, base.height() as usize);
-    let mut px = base.rgba().to_vec();
-    let badge = badge_rgba(count);
-    const K: usize = 2; // 32 → 64 px
-    if w < 32 * K || h < 32 * K {
-        return None;
-    }
-    let (ox, oy) = (w - 32 * K, h - 32 * K);
-    for y in 0..32 * K {
-        for x in 0..32 * K {
-            let b = &badge[((y / K) * 32 + x / K) * 4..][..4];
-            let a = b[3] as u32;
-            if a == 0 {
-                continue;
-            }
-            let d = &mut px[((oy + y) * w + ox + x) * 4..][..4];
-            for c in 0..3 {
-                d[c] = ((b[c] as u32 * a + d[c] as u32 * (255 - a)) / 255) as u8;
-            }
-            d[3] = d[3].max(b[3]);
-        }
-    }
-    Some(tauri::image::Image::new_owned(px, w as u32, h as u32))
-}
-
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn icon_gets_a_badge() {
-        let plain =
-            tauri::image::Image::from_bytes(include_bytes!("../icons/128x128.png")).unwrap();
-        let badged = super::icon_with_badge(7).expect("icon");
-        assert_eq!(
-            (badged.width(), badged.height()),
-            (plain.width(), plain.height())
-        );
-        assert_ne!(badged.rgba(), plain.rgba());
-    }
-
     #[test]
     fn sender_count() {
         let n = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();

@@ -218,7 +218,26 @@ fn on_title(app: &AppHandle, account_id: &str, title: &str) {
     if lock(&app.state::<AppState>().page_unread).contains(account_id) {
         return;
     }
-    set_unread(app, account_id, unread_from_title(title));
+    let state = app.state::<AppState>();
+    lock(&state.titles).insert(account_id.to_string(), title.to_string());
+    let count = unread_from_title(title);
+    let shown = lock(&state.unread).get(account_id).copied().unwrap_or(0);
+    if count > 0 || shown == 0 {
+        set_unread(app, account_id, count);
+        return;
+    }
+    // A title without a count while there are unread messages: apps flash the title
+    // ("An sent a message" ↔ "(1) Messenger"), so it only counts as read if the title
+    // still has no count a few seconds later.
+    let (app, id) = (app.clone(), account_id.to_string());
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(4));
+        let state = app.state::<AppState>();
+        let latest = lock(&state.titles).get(&id).cloned().unwrap_or_default();
+        if unread_from_title(&latest) == 0 && !lock(&state.page_unread).contains(&id) {
+            set_unread(&app, &id, 0);
+        }
+    });
 }
 
 /// Records an account's unread count and tells everything that shows it.

@@ -67,20 +67,12 @@
   },
   "unreadChats": {
     "row": ".chat-list .ListItem.Chat",
-    "badge": ".ChatBadge.unread, .ChatBadge:not(.pinned):not(.mention)",
+    "badgeDigits": ".subtitle > div",
+    "skipRow": ".icon-muted",
     "name": {
       "sel": ".fullName"
     }
   },
   "_avatarNote": "Telegram Web shows your own photo only in Settings (☰ → Settings); Mnemo picks it up the first time that screen is open and keeps it.",
-  "unreadCount": [
-    {
-      "sel": ".chat-list .ChatBadge:not(.muted):not(.pinned)",
-      "not": ".muted, .ChatBadge.mention, .ChatBadge.reaction",
-      "mode": "sum",
-      "zeroIsOne": true,
-      "listSel": ".chat-list"
-    }
-  ],
-  "_unreadNote": "unreadCount: the unread-message total is the sum of the chat list's badges (muted chats left out), not the page title. Only conversations the list has drawn are counted; scrolled-away ones aren't."
+  "_unreadNote": "The unread total comes from Telegram itself: inside a Tauri app it calls set_notifications_count (unmuted chats only), which Mnemo implements. The chat badges have build-hashed class names, so unread rows are recognised by a count in the row's subtitle; muted rows (.icon-muted) are left out."
 }

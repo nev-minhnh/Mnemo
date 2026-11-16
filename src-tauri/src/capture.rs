@@ -108,6 +108,38 @@ pub fn mnemo_senders(
     Ok(())
 }
 
+/// Telegram Web sees it runs inside a Tauri app and behaves as Telegram's own desktop app:
+/// instead of putting its unread count on the page, it hands it over with the commands of
+/// that app. Mnemo answers to the same names: the count (unmuted chats only, as Telegram
+/// counts it) becomes the account's unread count.
+#[tauri::command]
+pub fn set_notifications_count(
+    app: AppHandle,
+    webview: Webview,
+    state: State<'_, AppState>,
+    amount: f64,
+) -> Result<(), String> {
+    let s = state.settings();
+    let account = account_for(&webview, &s)?;
+    let n = if amount.is_finite() && amount > 0.0 {
+        amount.min(99_999.0) as u32
+    } else {
+        0
+    };
+    lock(&state.page_unread).insert(account.id.clone());
+    crate::webviews::set_unread(&app, &account.id, n);
+    Ok(())
+}
+
+/// Asked by Telegram Web as a desktop app (see above); the window is Mnemo's, so nothing.
+#[tauri::command]
+pub fn set_window_title(title: Option<String>) {
+    let _ = title;
+}
+
+#[tauri::command]
+pub fn mark_title_bar_overlay() {}
+
 /// How much of the page's top to keep above the window (Messenger's Facebook bar), so
 /// the app keeps its own layout instead of leaving a gap where the bar was hidden.
 #[tauri::command]

@@ -48,6 +48,8 @@ pub struct AppState {
     /// A count that only comes back up to it (apps redraw their chat list, and the count
     /// read from it dips meanwhile) is not announced again.
     pub peak: Mutex<HashMap<String, (u32, i64)>>,
+    /// Per account: the page's latest title (see `webviews::on_title`).
+    pub titles: Mutex<HashMap<String, String>>,
     /// Per account: notifications already shown (sender + text → when), so an app repeating
     /// the same one doesn't pop up again. Forgotten when the person looks at the account.
     pub shown: Mutex<HashMap<String, HashMap<String, i64>>>,
