@@ -53,6 +53,7 @@ const COMMANDS: &[&str] = &[
     "mnemo_profile",
     "mnemo_notify",
     "notices_state",
+    "set_unread_badge",
     "notice_dismiss",
     "notice_open",
     "pick_folder",

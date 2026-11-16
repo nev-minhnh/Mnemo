@@ -408,6 +408,7 @@ pub fn run() {
             capture::mnemo_profile,
             notify::mnemo_notify,
             notify::notices_state,
+            notify::set_unread_badge,
             notify::notice_dismiss,
             notify::notice_open,
             commands::pick_folder,

@@ -68,6 +68,7 @@ function renderSidebar() {
   // On a horizontal bar the add button stays outside the scrolling row, always in view.
   const addBtn = `<button class="acc-row add${pickerOpen ? ' on' : ''}" data-add title="Thêm tài khoản"><span class="acc-avatar"><span class="add-circle">${ICON.plus}</span></span><span class="acc-text side-label"><span class="acc-name">Thêm tài khoản</span></span></button>`;
   const total = activeAccounts().reduce((n, a) => n + ((S.unread || {})[a.id] || 0), 0);
+  Badge.update(total, !!(S.settings.notify || {}).taskbar_badge);
   sb.innerHTML = `
     <div class="side-head">
       <img class="logo" src="logo.png" alt="Mnemo" data-page="home" title="Mnemo – Every chat in sight, locked safe and tight.">

@@ -500,6 +500,41 @@ pub fn badge_rgba(count: u32) -> Vec<u8> {
 }
 
 /// Total unread over every account, on the taskbar icon and in the window title.
+/// Unread count on the taskbar button (Windows overlay icon) and the tray icon, both drawn
+/// by the bar's page (ui/badge.js); `None` removes the badge.
+#[tauri::command]
+pub fn set_unread_badge(
+    app: AppHandle,
+    count: i64,
+    overlay: Option<Vec<u8>>,
+    tray: Option<Vec<u8>>,
+) -> Result<(), String> {
+    use tauri::image::Image;
+    let _ = count;
+    let img = |b: Option<Vec<u8>>| -> Result<Option<Image<'static>>, String> {
+        match b {
+            Some(b) if !b.is_empty() => Image::from_bytes(&b).map(Some).map_err(|e| e.to_string()),
+            _ => Ok(None),
+        }
+    };
+    #[cfg(windows)]
+    if let Some(w) = app.get_window(webviews::MAIN) {
+        w.set_overlay_icon(img(overlay)?)
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    let _ = overlay;
+    if let Some(t) = app.tray_by_id("mnemo") {
+        let icon = match img(tray)? {
+            Some(i) => Some(i),
+            None => app.default_window_icon().cloned(),
+        };
+        let _ = t.set_icon(icon);
+    }
+    Ok(())
+}
+
+/// Tray tooltip and window title with the unread total (the badges are drawn by the page).
 pub fn update_taskbar(app: &AppHandle) {
     let state = app.state::<AppState>();
     let s = state.settings();
@@ -525,26 +560,6 @@ pub fn update_taskbar(app: &AppHandle) {
     } else {
         "Mnemo".to_string()
     });
-    #[cfg(windows)]
-    {
-        // The count sits on the taskbar icon as an overlay badge, redrawn only when it
-        // changed.
-        static LAST: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(-1);
-        let badge = if s.notify.taskbar_badge { total } else { 0 };
-        if LAST.swap(badge as i64, std::sync::atomic::Ordering::Relaxed) != badge as i64 {
-            let icon =
-                (badge > 0).then(|| tauri::image::Image::new_owned(badge_rgba(badge), 32, 32));
-            let _ = w.set_overlay_icon(icon);
-        }
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = w.set_badge_count(if s.notify.taskbar_badge && total > 0 {
-            Some(total as i64)
-        } else {
-            None
-        });
-    }
 }
 
 #[cfg(test)]

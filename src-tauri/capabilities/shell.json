@@ -13,6 +13,7 @@
     "allow-assist-close",
     "allow-assist-save-choice",
     "allow-get-state",
+    "allow-set-unread-badge",
     "allow-save-settings",
     "allow-add-account",
     "allow-update-account",
