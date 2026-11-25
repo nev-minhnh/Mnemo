@@ -30,6 +30,8 @@
     "allow-mnemo-senders",
     "allow-set-notifications-count",
     "allow-set-window-title",
+    "allow-open-new-window-cmd",
+    "shell:allow-open",
     "allow-mark-title-bar-overlay",
     "allow-mnemo-crop",
     "allow-mnemo-ingest",

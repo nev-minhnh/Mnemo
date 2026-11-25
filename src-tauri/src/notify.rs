@@ -194,6 +194,75 @@ pub fn push(app: &AppHandle, notice: Notice) {
     publish(app);
 }
 
+/// A notice about a file downloaded from an account: started, saved (click: show it in its
+/// folder) or failed. One notice per download (`key`: its address), updated in place.
+pub fn file_notice(
+    app: &AppHandle,
+    account_id: &str,
+    kind: webviews::FileNotice,
+    path: &std::path::Path,
+    key: &str,
+) {
+    use webviews::FileNotice::*;
+    let state = app.state::<AppState>();
+    let s = state.settings();
+    let Some(account) = s.account(account_id).cloned() else {
+        return;
+    };
+    let en = s.language == "en";
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .filter(|n| !n.is_empty())
+        .unwrap_or_else(|| if en { "File" } else { "Tệp" }.into());
+    let folder = path
+        .parent()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default();
+    let text = match (kind, en) {
+        (Started, false) => "Đang tải về…".to_string(),
+        (Started, true) => "Downloading…".to_string(),
+        (Done, false) => format!("Đã tải về {folder}. Bấm để mở thư mục."),
+        (Done, true) => format!("Saved to {folder}. Click to show it."),
+        (Failed, false) => "Tải về không thành công.".to_string(),
+        (Failed, true) => "Download failed.".to_string(),
+    };
+    let extra = if kind == Done {
+        json!({ "file": path })
+    } else {
+        Value::Null
+    };
+    push(
+        app,
+        Notice {
+            id: crate::util::random_id(8),
+            account: account.id.clone(),
+            service: account.service.as_str().into(),
+            app: account.service.display().into(),
+            from: name,
+            to: account.label.clone(),
+            text,
+            ts: crate::util::now_ms(),
+            avatar: lock(&state.avatars).get(&account.id).cloned(),
+            page_id: None,
+            extra,
+            generic: true,
+            tag: Some(format!("file:{}", crate::util::truncate_chars(key, 300))),
+        },
+    );
+}
+
+/// Takes back the "downloading" notice of a download handed to the browser instead.
+pub fn forget_file_notice(app: &AppHandle, account_id: &str, key: &str) {
+    let tag = format!("file:{}", crate::util::truncate_chars(key, 300));
+    {
+        let state = app.state::<AppState>();
+        let mut n = lock(&state.notices);
+        n.retain(|x| !(x.account == account_id && x.tag.as_deref() == Some(tag.as_str())));
+    }
+    publish(app);
+}
+
 /// Display name of an account for the "To:" line.
 pub fn account_name(state: &AppState, account_id: &str) -> String {
     state
@@ -327,6 +396,14 @@ pub async fn notice_open(
         n.remove(pos)
     };
     publish(&app);
+    // A downloaded file: show it in its folder.
+    if let Some(file) = notice.extra.get("file").and_then(|f| f.as_str()) {
+        use tauri_plugin_opener::OpenerExt;
+        return app
+            .opener()
+            .reveal_item_in_dir(file)
+            .map_err(|e| e.to_string());
+    }
     if let Some(w) = app.get_window(webviews::MAIN) {
         let _ = w.unminimize();
         let _ = w.show();

@@ -254,6 +254,12 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // Telegram Web, running as its own desktop app, opens links through this plugin.
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("shell")
+                .invoke_handler(tauri::generate_handler![capture::shell::open])
+                .build(),
+        )
         .setup(|app| {
             let state = build_state(app)?;
             app.manage(state);
@@ -361,6 +367,7 @@ pub fn run() {
             capture::mnemo_senders,
             capture::set_notifications_count,
             capture::set_window_title,
+            capture::open_new_window_cmd,
             capture::mark_title_bar_overlay,
             capture::mnemo_crop,
             capture::mnemo_ingest,

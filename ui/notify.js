@@ -33,7 +33,7 @@ function render(list) {
   const box = $('#list');
   // Newest at the bottom, next to the taskbar; only the latest few.
   const shown = list.slice(0, 4).reverse();
-  box.innerHTML = shown.map((n) => `<div class="note" data-id="${esc(n.id)}" title="Bấm để mở hội thoại">
+  box.innerHTML = shown.map((n) => `<div class="note" data-id="${esc(n.id)}" title="${n.extra && n.extra.file ? 'Bấm để mở thư mục' : 'Bấm để mở hội thoại'}">
     ${avatar(n)}
     <div class="head"><span class="app" data-noi18n>${esc(n.app)}${n.to ? ` - ${esc(n.to)}` : ''}</span><span class="time">${timeText(n.ts)}</span></div>
     <div class="from" data-noi18n>${esc(n.from)}</div>

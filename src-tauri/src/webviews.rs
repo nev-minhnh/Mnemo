@@ -347,19 +347,23 @@ pub fn unread_from_title(title: &str) -> u32 {
         .unwrap_or(0)
 }
 
+/// Where files the person downloads from an account go.
+fn downloads_dir_for(app: &AppHandle, account_id: &str) -> Option<std::path::PathBuf> {
+    let settings = app.state::<AppState>().settings();
+    let account = settings.account(account_id)?;
+    Some(media::manual_downloads_dir(
+        &settings.downloads_dir,
+        account.service,
+        &account.label,
+    ))
+}
+
 fn on_download(app: &AppHandle, account_id: &str, event: DownloadEvent<'_>) -> bool {
-    let state = app.state::<AppState>();
-    let settings = state.settings();
-    let Some(account) = settings.account(account_id).cloned() else {
-        return true;
-    };
     match event {
         DownloadEvent::Requested { url, destination } => {
-            let dir = media::manual_downloads_dir(
-                &settings.downloads_dir,
-                account.service,
-                &account.label,
-            );
+            let Some(dir) = downloads_dir_for(app, account_id) else {
+                return true;
+            };
             if std::fs::create_dir_all(&dir).is_err() {
                 return true; // the browser's default place still works
             }
@@ -370,17 +374,48 @@ fn on_download(app: &AppHandle, account_id: &str, event: DownloadEvent<'_>) -> b
                 .or_else(|| {
                     url.path_segments()
                         .and_then(|mut s| s.next_back().map(|x| x.to_string()))
+                        .filter(|n| !n.is_empty())
                 })
                 .unwrap_or_else(|| "download".into());
             *destination =
                 crate::util::unique_path(&dir, &crate::util::safe_component(&suggested, 120));
+            crate::notify::file_notice(
+                app,
+                account_id,
+                FileNotice::Started,
+                destination,
+                url.as_str(),
+            );
             true
         }
-        DownloadEvent::Finished { path, success, .. } => {
-            if let (true, Some(path)) = (success, path) {
-                let app = app.clone();
-                let account_id = account_id.to_string();
-                std::thread::spawn(move || record_download(&app, &account_id, &path));
+        DownloadEvent::Finished { url, path, success } => {
+            match (success, path) {
+                (true, Some(path)) => {
+                    crate::notify::file_notice(
+                        app,
+                        account_id,
+                        FileNotice::Done,
+                        &path,
+                        url.as_str(),
+                    );
+                    let app = app.clone();
+                    let account_id = account_id.to_string();
+                    std::thread::spawn(move || record_download(&app, &account_id, &path));
+                }
+                (_, path) => {
+                    let name = path.unwrap_or_else(|| {
+                        url.path_segments()
+                            .and_then(|mut s| s.next_back().map(std::path::PathBuf::from))
+                            .unwrap_or_default()
+                    });
+                    crate::notify::file_notice(
+                        app,
+                        account_id,
+                        FileNotice::Failed,
+                        &name,
+                        url.as_str(),
+                    );
+                }
             }
             true
         }
@@ -388,12 +423,168 @@ fn on_download(app: &AppHandle, account_id: &str, event: DownloadEvent<'_>) -> b
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FileNotice {
+    Started,
+    Done,
+    Failed,
+}
+
+/// Downloads a file from the account's file servers (an attachment link the app opens in
+/// a new tab) into the account's downloads folder. A page instead of a file, or a server
+/// that refuses Mnemo (it needs the app's sign-in), goes to the browser as before.
+pub fn download_url(app: &AppHandle, account_id: &str, url: &str) {
+    let (app, account_id, url) = (app.clone(), account_id.to_string(), url.to_string());
+    tauri::async_runtime::spawn(async move {
+        let Some(dir) = downloads_dir_for(&app, &account_id) else {
+            return;
+        };
+        let guess = file_name_from_url(&url);
+        crate::notify::file_notice(
+            &app,
+            &account_id,
+            FileNotice::Started,
+            std::path::Path::new(&guess),
+            &url,
+        );
+        match fetch_to(&app, &url, &dir, &guess).await {
+            Ok(Some(path)) => {
+                crate::notify::file_notice(&app, &account_id, FileNotice::Done, &path, &url);
+                let app2 = app.clone();
+                std::thread::spawn(move || record_download(&app2, &account_id, &path));
+            }
+            Ok(None) => {
+                crate::notify::forget_file_notice(&app, &account_id, &url);
+                open_external(&app, &url);
+            }
+            Err(e) => {
+                log::warn!("download {url}: {e}");
+                crate::notify::forget_file_notice(&app, &account_id, &url);
+                open_external(&app, &url);
+            }
+        }
+    });
+}
+
+/// Saves the file at `url` in `dir`; `None` when the address is a web page, not a file.
+async fn fetch_to(
+    app: &AppHandle,
+    url: &str,
+    dir: &std::path::Path,
+    guess: &str,
+) -> Result<Option<std::path::PathBuf>, String> {
+    use futures_util::StreamExt;
+    use std::io::Write;
+    let state = app.state::<AppState>();
+    let resp = state
+        .http
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
+    let header = |name: reqwest::header::HeaderName| {
+        resp.headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string()
+    };
+    let mime = header(reqwest::header::CONTENT_TYPE).to_ascii_lowercase();
+    let disposition = header(reqwest::header::CONTENT_DISPOSITION);
+    if mime.starts_with("text/html") && !disposition.to_ascii_lowercase().contains("attachment") {
+        return Ok(None);
+    }
+    let mut name = file_name_from_disposition(&disposition).unwrap_or_else(|| guess.to_string());
+    if crate::util::ext_of(&name).is_empty() {
+        if let Some(ext) = ext_for_mime(&mime) {
+            name = format!("{name}.{ext}");
+        }
+    }
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let path = crate::util::unique_path(dir, &crate::util::safe_component(&name, 120));
+    let part = path.with_extension(format!(
+        "{}.part",
+        path.extension().and_then(|e| e.to_str()).unwrap_or("")
+    ));
+    let result = async {
+        let mut file = std::fs::File::create(&part).map_err(|e| e.to_string())?;
+        let mut body = resp.bytes_stream();
+        while let Some(chunk) = body.next().await {
+            let chunk = chunk.map_err(|e| e.to_string())?;
+            file.write_all(&chunk).map_err(|e| e.to_string())?;
+        }
+        file.flush().map_err(|e| e.to_string())?;
+        drop(file);
+        std::fs::rename(&part, &path).map_err(|e| e.to_string())
+    }
+    .await;
+    if let Err(e) = result {
+        let _ = std::fs::remove_file(&part);
+        return Err(e);
+    }
+    Ok(Some(path))
+}
+
+/// The last part of the address, without its query: "…/v/t59/report.pdf?dl=1" → "report.pdf".
+pub fn file_name_from_url(url: &str) -> String {
+    url::Url::parse(url)
+        .ok()
+        .and_then(|u| {
+            u.path_segments()
+                .and_then(|mut s| s.next_back().map(|x| x.to_string()))
+        })
+        .map(|n| crate::util::percent_decode(&n))
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| "download".into())
+}
+
+/// `attachment; filename*=UTF-8''b%C3%A1o%20c%C3%A1o.pdf` or `filename="report.pdf"`.
+pub fn file_name_from_disposition(header: &str) -> Option<String> {
+    let mut plain = None;
+    for part in header.split(';') {
+        let part = part.trim();
+        let Some((k, v)) = part.split_once('=') else {
+            continue;
+        };
+        let k = k.trim().to_ascii_lowercase();
+        let v = v.trim().trim_matches('"');
+        if k == "filename*" {
+            let encoded = v.splitn(3, '\'').nth(2).unwrap_or(v);
+            let name = crate::util::percent_decode(encoded);
+            if !name.trim().is_empty() {
+                return Some(name);
+            }
+        } else if k == "filename" && !v.trim().is_empty() {
+            plain = Some(v.to_string());
+        }
+    }
+    plain
+}
+
+fn ext_for_mime(mime: &str) -> Option<&'static str> {
+    let m = mime.split(';').next().unwrap_or("").trim();
+    Some(match m {
+        "image/jpeg" => "jpg",
+        "image/png" => "png",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "video/mp4" => "mp4",
+        "audio/mpeg" => "mp3",
+        "audio/ogg" => "ogg",
+        "application/pdf" => "pdf",
+        "application/zip" => "zip",
+        _ => return None,
+    })
+}
+
 fn record_download(app: &AppHandle, account_id: &str, path: &std::path::Path) {
     let state = app.state::<AppState>();
-    let Ok(data) = std::fs::read(path) else {
+    let Some((sha, size)) = hash_file(path) else {
         return;
     };
-    let sha = crate::util::sha256_hex(&data);
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -418,21 +609,41 @@ fn record_download(app: &AppHandle, account_id: &str, path: &std::path::Path) {
             kind,
             file_name: &name,
             mime: "",
-            size: data.len() as i64,
+            size: size as i64,
             sha256: &sha,
             path,
             encrypted: false,
             origin: "download",
         })
     });
-    if res.is_ok() {
-        state.bump_stats(account_id, 0, 1, None);
-        let _ = app.emit_to(
-            SHELL,
-            "download",
-            serde_json::json!({ "account": account_id, "name": name, "path": path }),
-        );
+    match res {
+        Ok(_) => state.bump_stats(account_id, 0, 1, None),
+        Err(e) => log::warn!("download not listed in the archive: {e}"),
     }
+    let _ = app.emit_to(
+        SHELL,
+        "download",
+        serde_json::json!({ "account": account_id, "name": name, "path": path }),
+    );
+}
+
+/// SHA-256 and size of a file, read in pieces (downloads can be large videos).
+fn hash_file(path: &std::path::Path) -> Option<(String, u64)> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut h = Sha256::new();
+    let mut buf = vec![0u8; 1 << 16];
+    let mut size = 0u64;
+    loop {
+        let n = f.read(&mut buf).ok()?;
+        if n == 0 {
+            break;
+        }
+        size += n as u64;
+        h.update(&buf[..n]);
+    }
+    Some((hex::encode(h.finalize()), size))
 }
 
 /// Creates the account's webview if it doesn't exist yet.
@@ -451,6 +662,7 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let service = account.service;
     let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());
     let (id_title, id_dl) = (account.id.clone(), account.id.clone());
+    let (id_nav, id_win) = (account.id.clone(), account.id.clone());
     let url = def.url.parse().map_err(|e| format!("{e}"))?;
     // End of the current sign-in window, shared by page navigations and popups.
     let sign_in = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
@@ -470,6 +682,10 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
                     open_external(&a1, url.as_str());
                     false
                 }
+                Nav::Download => {
+                    download_url(&a1, &id_nav, url.as_str());
+                    false
+                }
                 Nav::Block => false,
             }
         })
@@ -486,6 +702,10 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
                 Nav::Allow => NewWindowResponse::Allow,
                 Nav::OpenExternally => {
                     open_external(&a2, url.as_str());
+                    NewWindowResponse::Deny
+                }
+                Nav::Download => {
+                    download_url(&a2, &id_win, url.as_str());
                     NewWindowResponse::Deny
                 }
                 Nav::Block => NewWindowResponse::Deny,

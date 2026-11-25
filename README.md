@@ -48,6 +48,7 @@ Mnemo puts **WhatsApp, Messenger, Instagram, Threads, Telegram, Zalo, Discord, S
   - dung lượng tối đa, có lưu trong nhóm hay không, hội thoại loại trừ, tự xóa sau N ngày
   - đặt chung hoặc riêng cho từng tài khoản
 - **Chọn nơi lưu** cho cả kho tin nhắn lẫn thư mục tệp tải về. Có thể bật mã hóa cả tệp đã lưu.
+- **Tải tệp trong khung chat**: tệp bạn bấm tải (kể cả tệp đính kèm nằm trên máy chủ tệp của Messenger, Discord, Zalo…) được lưu vào `Downloads\<ứng dụng>\<tài khoản>\Downloads` trong thư mục tệp tải về; thông báo hiện khi đang tải, khi xong (bấm để mở thư mục) hoặc khi lỗi.
 
 **Trợ lý AI**
 - **Mọi tính năng AI nằm trong một panel bên phải** (nút ✦ trên thanh Mnemo), chọn tính năng bằng tab: **Hội thoại** (tóm tắt, gợi ý trả lời, hỏi đáp) và **Trợ lý viết**.

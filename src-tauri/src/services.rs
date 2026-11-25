@@ -192,6 +192,9 @@ pub enum Nav {
     Allow,
     OpenExternally,
     Block,
+    /// A file on the service's own file servers (an attachment, a photo): Mnemo downloads
+    /// it into the account's downloads folder instead of handing it to the browser.
+    Download,
 }
 
 pub fn navigation(def: &ServiceDef, url: &Url) -> Nav {
@@ -204,28 +207,34 @@ pub fn navigation(def: &ServiceDef, url: &Url) -> Nav {
     let Some(host) = url.host_str() else {
         return Nav::Block;
     };
-    if !host_matches(host, def.hosts) {
-        return Nav::OpenExternally;
-    }
-    if url.scheme() != "https" {
+    let own = host_matches(host, def.hosts);
+    if own && url.scheme() != "https" {
         return Nav::Block;
     }
-    match def.paths {
-        None => Nav::Allow,
-        Some(paths) => {
-            let path = url.path();
-            let ok = paths.iter().any(|p| {
-                if *p == "/" {
-                    path == "/"
-                } else {
-                    path == *p
-                        || path.starts_with(&format!("{p}/"))
-                        || path.starts_with(&format!("{p}?"))
-                }
-            });
-            if ok { Nav::Allow } else { Nav::OpenExternally }
+    if own {
+        let ok = match def.paths {
+            None => true,
+            Some(paths) => {
+                let path = url.path();
+                paths.iter().any(|p| {
+                    if *p == "/" {
+                        path == "/"
+                    } else {
+                        path == *p
+                            || path.starts_with(&format!("{p}/"))
+                            || path.starts_with(&format!("{p}?"))
+                    }
+                })
+            }
+        };
+        if ok {
+            return Nav::Allow;
         }
     }
+    if url.scheme() == "https" && host_matches(host, def.media_hosts) {
+        return Nav::Download;
+    }
+    Nav::OpenExternally
 }
 
 /// Sign-in and identity-check pages of the big identity providers. Facebook and Instagram
@@ -429,6 +438,28 @@ mod tests {
             Nav::Block
         );
         assert_eq!(navigation(d, &u("file:///C:/x")), Nav::Block);
+        // Attachments on the service's file servers are downloaded, not sent to the browser.
+        assert_eq!(
+            navigation(d, &u("https://scontent.xx.fbcdn.net/v/t1/report.pdf?dl=1")),
+            Nav::Download
+        );
+        assert_eq!(
+            navigation(d, &u("https://cdn.fbsbx.com/v/t59/file.docx")),
+            Nav::Download
+        );
+        assert_eq!(
+            navigation(d, &u("http://cdn.fbsbx.com/v/t59/file.docx")),
+            Nav::OpenExternally
+        );
+        let dc = def(ServiceId::Discord);
+        assert_eq!(
+            navigation(dc, &u("https://cdn.discordapp.com/attachments/1/2/a.zip")),
+            Nav::Download
+        );
+        assert_eq!(
+            navigation(dc, &u("https://discord.com/channels/@me")),
+            Nav::Allow
+        );
     }
 
     #[test]

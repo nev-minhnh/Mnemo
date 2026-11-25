@@ -8,6 +8,7 @@ const COMMANDS: &[&str] = &[
     "mnemo_senders",
     "set_notifications_count",
     "set_window_title",
+    "open_new_window_cmd",
     "mark_title_bar_overlay",
     "mnemo_crop",
     "mnemo_ingest",
@@ -91,7 +92,12 @@ const COMMANDS: &[&str] = &[
 fn main() {
     tauri_build::try_build(
         tauri_build::Attributes::new()
-            .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)),
+            .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS))
+            // Telegram Web as a desktop app opens links with the shell plugin's `open`.
+            .plugin(
+                "shell",
+                tauri_build::InlinedPlugin::new().commands(&["open"]),
+            ),
     )
     .expect("failed to run tauri-build");
 }

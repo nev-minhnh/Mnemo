@@ -131,6 +131,31 @@ pub fn set_notifications_count(
     Ok(())
 }
 
+/// Telegram Web as a desktop app (see above) opens a part of itself (a chat, a message
+/// link) in a new window; Mnemo shows it in the account's own page instead.
+#[tauri::command]
+pub fn open_new_window_cmd(webview: Webview, url: String) -> bool {
+    let (Ok(to), Ok(here)) = (url::Url::parse(&url), webview.url()) else {
+        return false;
+    };
+    if to.origin() != here.origin() || to.path() != here.path() {
+        return false;
+    }
+    let Ok(js) = serde_json::to_string(to.as_str()) else {
+        return false;
+    };
+    webview.eval(format!("location.href = {js};")).is_ok()
+}
+
+/// The `shell` plugin's `open`, as Telegram Web as a desktop app (see above) calls it for
+/// every link it opens: web links go to the browser, like links in the other apps.
+pub mod shell {
+    #[tauri::command]
+    pub fn open(app: tauri::AppHandle, path: String) {
+        crate::webviews::open_external(&app, &path);
+    }
+}
+
 /// Asked by Telegram Web as a desktop app (see above); the window is Mnemo's, so nothing.
 #[tauri::command]
 pub fn set_window_title(title: Option<String>) {

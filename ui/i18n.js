@@ -23,6 +23,7 @@ const I18N = {
   'Bản nháp (sửa trực tiếp được)': 'Draft (you can edit it)',
   'Bấm × thì thu về khay': 'Closing (×) minimizes to the tray',
   'Bấm để mở hội thoại': 'Click to open the conversation',
+  'Bấm để mở thư mục': 'Click to show it in its folder',
   'Bật': 'On',
   'Bật (mở qua Mnemo)': 'On (opened through Mnemo)',
   'Bật (tốn token)': 'On (uses tokens)',

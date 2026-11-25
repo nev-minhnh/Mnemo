@@ -1279,7 +1279,7 @@ async function start() {
     renderSidebar();
     if (page === 'home' && !visible) renderMain();
   });
-  listen('download', (e) => toast(`Đã tải về: ${e.payload.name}`));
+  // Downloads are announced by the notification window (it stays above the apps).
   listen('avatar', (e) => {
     if (!S) return;
     if (e.payload.avatar) S.avatars[e.payload.account] = e.payload.avatar; else delete S.avatars[e.payload.account];
