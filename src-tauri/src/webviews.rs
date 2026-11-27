@@ -669,6 +669,9 @@ pub fn ensure_account(app: &AppHandle, account: &Account) -> Result<Webview, Str
     let (si1, si2) = (sign_in.clone(), sign_in);
     let builder = WebviewBuilder::new(&label, WebviewUrl::External(url))
         .data_directory(profile)
+        // Files dragged in from Explorer go to the page (to send them in the chat), not to
+        // Tauri's own drop handler, which would swallow them.
+        .disable_drag_drop_handler()
         .initialization_script(services::init_script(service, &account.id, &page_cfg))
         .on_navigation(move |url| {
             match services::navigation_signin(
